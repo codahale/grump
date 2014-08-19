@@ -11,8 +11,6 @@ value, used as a Curve25519 key. It's stored on disk encrypted with
 ChaCha20Poly1305, using a key derived from your passphrase via scrypt, as a
 protobuf.
 
-Public keys are Base64 encoded, and they're short so you can pass them around.
-
 ## Messages
 
 Grump messages are a sequence of framed protobufs (little-endian, 32-bit frame

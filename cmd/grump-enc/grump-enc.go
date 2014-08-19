@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -19,27 +18,16 @@ func main() {
 	)
 	flag.Parse()
 
-	var passphrase []byte
+	var passphrase string
 	fmt.Printf("Passphrase: ")
 	fmt.Scanln(&passphrase)
 
-	f, err := os.Open(*privKeyName)
-	if err != nil {
-		die(err)
-	}
-	defer f.Close()
-
-	_, privKey, err := grump.LoadKeyPair(f, passphrase)
+	privKey, err := ioutil.ReadFile(*privKeyName)
 	if err != nil {
 		die(err)
 	}
 
-	recipStr, err := ioutil.ReadFile(*pubKeyName)
-	if err != nil {
-		die(err)
-	}
-
-	recipient, err := base64.URLEncoding.DecodeString(string(recipStr))
+	recipient, err := ioutil.ReadFile(*pubKeyName)
 	if err != nil {
 		die(err)
 	}
@@ -56,7 +44,14 @@ func main() {
 	}
 	defer out.Close()
 
-	if err := grump.Encrypt(privKey, [][]byte{recipient}, in, out, 1024*1024); err != nil {
+	if err := grump.Encrypt(
+		privKey,
+		passphrase,
+		[]grump.PublicKey{recipient},
+		in,
+		out,
+		1024*1024,
+	); err != nil {
 		die(err)
 	}
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -16,12 +15,12 @@ func main() {
 		r = flag.Int("r", 8, "scrypt block size")
 		p = flag.Int("p", 1, "scrypt parallelization factor")
 
-		pubKeyName  = flag.String("pub-key", "out.pub", "public key name")
-		privKeyName = flag.String("priv-key", "out.priv", "private key name")
+		pubKeyName  = flag.String("pub", "out.pub", "public key name")
+		privKeyName = flag.String("priv", "out.priv", "private key name")
 	)
 	flag.Parse()
 
-	var passphrase []byte
+	var passphrase string
 	fmt.Printf("Passphrase: ")
 	fmt.Scanln(&passphrase)
 
@@ -30,8 +29,7 @@ func main() {
 		die(err)
 	}
 
-	b64 := base64.URLEncoding.EncodeToString(pubKey)
-	if err := ioutil.WriteFile(*pubKeyName, []byte(b64), 0600); err != nil {
+	if err := ioutil.WriteFile(*pubKeyName, pubKey, 0644); err != nil {
 		die(err)
 	}
 

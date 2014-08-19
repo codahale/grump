@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"io/ioutil"
 
 	"code.google.com/p/go.crypto/curve25519"
 	"code.google.com/p/go.crypto/scrypt"
@@ -16,7 +15,17 @@ import (
 	"github.com/codahale/grump/pb"
 )
 
-func GenerateKeyPair(passphrase []byte, n, r, p int) ([]byte, []byte, error) {
+// PublicKey is a Grump public key. This is a 32-byte Curve25519 point.
+type PublicKey []byte
+
+// PrivateKey is a Grump private key. This is a 32-byte Curve25519 point,
+// encrypted with ChaCha20Poly1305 using a key derived from a passphrase using
+// scrypt.
+type PrivateKey []byte
+
+// GenerateKeyPair creates a new Curve25519 key pair and encrypts the private
+// key with the given passphrase and scrypt parameters.
+func GenerateKeyPair(passphrase string, n, r, p int) (PublicKey, PrivateKey, error) {
 	var publicKey, privateKey [32]byte
 
 	if _, err := rand.Read(privateKey[:]); err != nil {
@@ -30,15 +39,12 @@ func GenerateKeyPair(passphrase []byte, n, r, p int) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
-	key, err := scrypt.Key(passphrase, salt, n, r, p, chacha20poly1305.KeySize)
+	key, err := scrypt.Key([]byte(passphrase), salt, n, r, p, chacha20poly1305.KeySize)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	aead, err := chacha20poly1305.NewChaCha20Poly1305(key)
-	if err != nil {
-		return nil, nil, err
-	}
+	aead, _ := chacha20poly1305.NewChaCha20Poly1305(key)
 
 	nonce := make([]byte, aead.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
@@ -64,48 +70,22 @@ func GenerateKeyPair(passphrase []byte, n, r, p int) ([]byte, []byte, error) {
 	return publicKey[:], pkb, nil
 }
 
-func LoadKeyPair(r io.Reader, passphrase []byte) ([]byte, []byte, error) {
-	buf, err := ioutil.ReadAll(r)
+// Encrypt first unlocks the given private key with the given passphrase, then
+// uses it to encrypt all of the data in the given reader so that only the given
+// recipients can decrypt it.
+func Encrypt(
+	privateKey PrivateKey,
+	passphrase string,
+	recipients []PublicKey,
+	r io.Reader,
+	w io.Writer,
+	chunkSize int,
+) error {
+	_, privKey, err := loadKeyPair(passphrase, privateKey)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
-	var pk pb.PrivateKey
-	if err := proto.Unmarshal(buf, &pk); err != nil {
-		return nil, nil, err
-	}
-
-	key, err := scrypt.Key(
-		passphrase,
-		pk.Salt,
-		int(pk.GetN()),
-		int(pk.GetR()),
-		int(pk.GetP()),
-		chacha20poly1305.KeySize,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	aead, err := chacha20poly1305.NewChaCha20Poly1305(key)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	privateKey, err := aead.Open(nil, pk.Nonce, pk.Ciphertext, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var pubKey, privKey [32]byte
-	copy(privKey[:], privateKey)
-
-	curve25519.ScalarBaseMult(&pubKey, &privKey)
-
-	return pubKey[:], privateKey, nil
-}
-
-func Encrypt(privateKey []byte, recipients [][]byte, r io.Reader, w io.Writer, chunkSize int) error {
 	mw := messageWriter{
 		w:       w,
 		sizeBuf: make([]byte, 4),
@@ -116,7 +96,7 @@ func Encrypt(privateKey []byte, recipients [][]byte, r io.Reader, w io.Writer, c
 		return err
 	}
 
-	header, err := generateHeader(privateKey, messageKey, recipients)
+	header, err := generateHeader(privKey, messageKey, recipients)
 	if err != nil {
 		return err
 	}
@@ -174,7 +154,20 @@ func Encrypt(privateKey []byte, recipients [][]byte, r io.Reader, w io.Writer, c
 	return err
 }
 
-func Decrypt(privateKey, publicKey []byte, r io.Reader, w io.Writer) error {
+// Decrypt first unlocks the given private key with the given passphrase and
+// then decrypts the data, verifying that it came from the given sender.
+func Decrypt(
+	privateKey PrivateKey,
+	passphrase string,
+	sender PublicKey,
+	r io.Reader,
+	w io.Writer,
+) error {
+	_, privKey, err := loadKeyPair(passphrase, privateKey)
+	if err != nil {
+		return err
+	}
+
 	mr := messageReader{
 		r:       r,
 		sizeBuf: make([]byte, 4),
@@ -187,7 +180,7 @@ func Decrypt(privateKey, publicKey []byte, r io.Reader, w io.Writer) error {
 		return err
 	}
 
-	messageKey, err := recoverKey(privateKey, publicKey, &header)
+	messageKey, err := recoverKey(privKey, sender, &header)
 	if err != nil {
 		return err
 	}
@@ -207,7 +200,8 @@ func Decrypt(privateKey, publicKey []byte, r io.Reader, w io.Writer) error {
 			return err
 		}
 
-		plaintext, err := aead.Open(nil, chunk.Nonce, chunk.Ciphertext, idList.add(chunk.GetId()))
+		ad := idList.add(chunk.GetId())
+		plaintext, err := aead.Open(nil, chunk.Nonce, chunk.Ciphertext, ad)
 		if err != nil {
 			return err
 		}
@@ -224,7 +218,43 @@ func Decrypt(privateKey, publicKey []byte, r io.Reader, w io.Writer) error {
 	return nil
 }
 
-func generateHeader(privateKey, messageKey []byte, recipients [][]byte) (*pb.Header, error) {
+func loadKeyPair(passphrase string, buf []byte) ([]byte, []byte, error) {
+	var pk pb.PrivateKey
+	if err := proto.Unmarshal(buf, &pk); err != nil {
+		return nil, nil, err
+	}
+
+	key, err := scrypt.Key(
+		[]byte(passphrase),
+		pk.Salt,
+		int(pk.GetN()),
+		int(pk.GetR()),
+		int(pk.GetP()),
+		chacha20poly1305.KeySize,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	aead, err := chacha20poly1305.NewChaCha20Poly1305(key)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	privateKey, err := aead.Open(nil, pk.Nonce, pk.Ciphertext, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var pubKey, privKey [32]byte
+	copy(privKey[:], privateKey)
+
+	curve25519.ScalarBaseMult(&pubKey, &privKey)
+
+	return pubKey[:], privateKey, nil
+}
+
+func generateHeader(privateKey PrivateKey, messageKey []byte, recipients []PublicKey) (*pb.Header, error) {
 	keys := make([]*pb.Header_Key, len(recipients))
 
 	for i, recipientKey := range recipients {
@@ -246,7 +276,7 @@ func generateHeader(privateKey, messageKey []byte, recipients [][]byte) (*pb.Hea
 	return &pb.Header{Keys: keys}, nil
 }
 
-func recoverKey(privateKey, senderKey []byte, header *pb.Header) ([]byte, error) {
+func recoverKey(privateKey PrivateKey, senderKey PublicKey, header *pb.Header) ([]byte, error) {
 	aead := sharedSecretAEAD(privateKey, senderKey)
 
 	for _, k := range header.Keys {
@@ -261,7 +291,7 @@ func recoverKey(privateKey, senderKey []byte, header *pb.Header) ([]byte, error)
 
 // sharedSecret returns a ChaCha20Poly1305 AEAD keyed with the SHA-256 hash of
 // the Curve25519 ECDH shared secret for the two keys.
-func sharedSecretAEAD(privateKey, publicKey []byte) cipher.AEAD {
+func sharedSecretAEAD(privateKey PrivateKey, publicKey PublicKey) cipher.AEAD {
 	// perform Curve25519 ECDH
 	var privKey, pubKey, sharedKey [32]byte
 	copy(privKey[:], privateKey)

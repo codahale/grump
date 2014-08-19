@@ -2,154 +2,106 @@ package grump
 
 import (
 	"bytes"
-	"crypto/rand"
 	"testing"
-
-	"code.google.com/p/go.crypto/curve25519"
 )
 
-func BenchmarkGenerateHeader(b *testing.B) {
-	sender := genKeyPair()
-	messageKey := make([]byte, 32)
-	recipients := [][]byte{
-		genKeyPair().publicKey,
-		genKeyPair().publicKey,
-		genKeyPair().publicKey,
-		genKeyPair().publicKey,
-		genKeyPair().publicKey,
-	}
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		generateHeader(sender.privateKey, messageKey, recipients)
-	}
-}
-
-func BenchmarkEncrypt(b *testing.B) {
-	sender := genKeyPair()
-	data := make([]byte, 1024*1024*10)
-	buf := bytes.NewBuffer(make([]byte, 1024*1024*15))
-	recipients := [][]byte{
-		genKeyPair().publicKey,
-		genKeyPair().publicKey,
-		genKeyPair().publicKey,
-		genKeyPair().publicKey,
-		genKeyPair().publicKey,
-	}
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		Encrypt(sender.privateKey, recipients, bytes.NewReader(data), buf, 1024*10)
-	}
-}
-
-func TestEncryptThenDecrypt(t *testing.T) {
-	sender := genKeyPair()
-	recipient := genKeyPair()
-	recipients := [][]byte{
-		genKeyPair().publicKey,
-		genKeyPair().publicKey,
-		genKeyPair().publicKey,
-		genKeyPair().publicKey,
-		recipient.publicKey,
-	}
-
-	data := make([]byte, 1024)
-	buf := bytes.NewBuffer(make([]byte, 0, 1024))
-	if err := Encrypt(sender.privateKey, recipients, bytes.NewReader(data), buf, 256); err != nil {
+func TestEndToEnd(t *testing.T) {
+	alicePub, alicePriv, err := GenerateKeyPair("alice", 256, 8, 1)
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	data = buf.Bytes()
-	buf = bytes.NewBuffer(nil)
-	if err := Decrypt(recipient.privateKey, sender.publicKey, bytes.NewReader(data), buf); err != nil {
+	bobPub, bobPriv, err := GenerateKeyPair("bob", 256, 8, 1)
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Logf("%v", buf.Bytes())
-}
-
-func BenchmarkRecoverKey(b *testing.B) {
-	sender := genKeyPair()
-	messageKey := make([]byte, 32)
-	recipient := genKeyPair()
-	recipients := [][]byte{
-		genKeyPair().publicKey,
-		genKeyPair().publicKey,
-		genKeyPair().publicKey,
-		genKeyPair().publicKey,
-		recipient.publicKey,
-	}
-
-	h, err := generateHeader(sender.privateKey, messageKey, recipients)
+	carolPub, carolPriv, err := GenerateKeyPair("carol", 256, 8, 1)
 	if err != nil {
-		b.Fatal(err)
+		t.Fatal(err)
 	}
 
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		recoverKey(recipient.privateKey, sender.publicKey, h)
-	}
-}
-
-func TestHeaderRoundTrip(t *testing.T) {
-	sender := genKeyPair()
-	rando := genKeyPair()
-	recipients := []keyPair{
-		genKeyPair(),
-		genKeyPair(),
-		genKeyPair(),
-		genKeyPair(),
-	}
-	messageKey := "yay for me"
-	recipientPKs := make([][]byte, len(recipients))
-	for i, kp := range recipients {
-		recipientPKs[i] = kp.publicKey
-	}
-
-	h, err := generateHeader(sender.privateKey, []byte(messageKey), recipientPKs)
+	_, evePriv, err := GenerateKeyPair("eve", 256, 8, 1)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	for _, kp := range recipients {
-		mk, err := recoverKey(kp.privateKey, sender.publicKey, h)
-		if err != nil {
-			t.Error(err)
-		}
+	message := []byte("this is a lovely way to handle stuff")
 
-		if string(mk) != messageKey {
-			t.Fatalf("Bad recovery: %#v, %#v, %#v for %#v", sender, recipients, h, kp)
-		}
+	// a message encrypted for Bob and Carol
+	encryptedMessage := bytes.NewBuffer(nil)
+	if err := Encrypt(
+		alicePriv,
+		"alice",
+		[]PublicKey{bobPub, carolPub},
+		bytes.NewReader(message),
+		encryptedMessage,
+		16,
+	); err != nil {
+		t.Fatal(err)
 	}
 
-	randoKey, err := recoverKey(rando.privateKey, sender.publicKey, h)
-	if err == nil {
-		t.Errorf("Rando was able to recover key: %v", randoKey)
+	// Bob can decrypt the message
+	bobMessage := bytes.NewBuffer(nil)
+	if err := Decrypt(
+		bobPriv,
+		"bob",
+		alicePub,
+		bytes.NewReader(encryptedMessage.Bytes()),
+		bobMessage,
+	); err != nil {
+		t.Fatal(err)
 	}
 
-	mistakenKey, err := recoverKey(recipients[0].privateKey, rando.publicKey, h)
-	if err == nil {
-		t.Errorf("Recipient was able to recover key from rando: %v", mistakenKey)
-	}
-}
-
-type keyPair struct {
-	privateKey, publicKey []byte
-}
-
-func genKeyPair() keyPair {
-	var publicKey, privateKey [32]byte
-
-	if _, err := rand.Read(privateKey[:]); err != nil {
-		panic(err)
+	if !bytes.Equal(message, bobMessage.Bytes()) {
+		t.Fatalf("Bob expected %v, but decrypted %v", message, bobMessage.Bytes())
 	}
 
-	curve25519.ScalarBaseMult(&publicKey, &privateKey)
+	// Carol can decrypt the message
+	carolMessage := bytes.NewBuffer(nil)
+	if err := Decrypt(
+		carolPriv,
+		"carol",
+		alicePub,
+		bytes.NewReader(encryptedMessage.Bytes()),
+		carolMessage,
+	); err != nil {
+		t.Fatal(err)
+	}
 
-	return keyPair{publicKey: publicKey[:], privateKey: privateKey[:]}
+	if !bytes.Equal(message, carolMessage.Bytes()) {
+		t.Fatalf("Carol expected %v, but decrypted %v", message, carolMessage.Bytes())
+	}
+
+	// Eve cannot decrypt the message
+	eveMessage := bytes.NewBuffer(nil)
+	if err := Decrypt(
+		evePriv,
+		"eve",
+		alicePub,
+		bytes.NewReader(encryptedMessage.Bytes()),
+		eveMessage,
+	); err == nil {
+		t.Fatalf(
+			"Eve shouldn't have been able to decrypt the message, but got %v",
+			eveMessage.Bytes(),
+		)
+	}
+
+	// Mallory cannot modify the message
+	modifiedMessage := encryptedMessage.Bytes()
+	modifiedMessage[90] ^= 32 // boop
+	malloryMessage := bytes.NewBuffer(nil)
+	if err := Decrypt(
+		carolPriv,
+		"carol",
+		alicePub,
+		bytes.NewReader(encryptedMessage.Bytes()),
+		malloryMessage,
+	); err == nil {
+		t.Fatalf(
+			"Mallory shouldn't have been able to modify the message, but Carol got %v",
+			malloryMessage.Bytes(),
+		)
+	}
 }
