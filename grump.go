@@ -112,7 +112,7 @@ func Encrypt(
 	plaintext := make([]byte, chunkSize)
 	nonce := make([]byte, aead.NonceSize())
 
-	done := false
+	var done bool
 	for !done {
 		n, err := io.ReadFull(r, plaintext)
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
@@ -125,12 +125,17 @@ func Encrypt(
 			return err
 		}
 
-		ciphertext := aead.Seal(nil, nonce, plaintext[:n], idList.add(id))
+		ad := idList.add(id)
+		if done {
+			ad = idList.add(0)
+		}
+		ciphertext := aead.Seal(nil, nonce, plaintext[:n], ad)
 
 		if err := mw.writeMessage(&pb.Chunk{
 			Id:         &id,
 			Nonce:      nonce,
 			Ciphertext: ciphertext,
+			Last:       proto.Bool(done),
 		}); err != nil {
 			return err
 		}
@@ -138,20 +143,7 @@ func Encrypt(
 		id++
 	}
 
-	if _, err := rand.Read(nonce); err != nil {
-		return err
-	}
-
-	ciphertext := aead.Seal(nil, nonce, nil, idList.add(id))
-
-	err = mw.writeMessage(&pb.Chunk{
-		Id:         &id,
-		Nonce:      nonce,
-		Ciphertext: ciphertext,
-		Last:       proto.Bool(true),
-	})
-
-	return err
+	return nil
 }
 
 // Decrypt first unlocks the given private key with the given passphrase and
@@ -201,6 +193,10 @@ func Decrypt(
 		}
 
 		ad := idList.add(chunk.GetId())
+		if chunk.GetLast() {
+			ad = idList.add(0)
+		}
+
 		plaintext, err := aead.Open(nil, chunk.Nonce, chunk.Ciphertext, ad)
 		if err != nil {
 			return err
@@ -210,7 +206,7 @@ func Decrypt(
 			return err
 		}
 
-		if chunk.Last != nil && *chunk.Last {
+		if chunk.GetLast() {
 			break
 		}
 	}

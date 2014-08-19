@@ -31,13 +31,11 @@ IDs of the chunks which precede any chunk are used as the authenticated data for
 the chunk AEAD (e.g., chunk #4's authenticated data is `[1, 2, 3, 4]`, encoded
 as a series of little-endian 32-bit values).
 
-The last chunk in a message is empty and flagged as such.
+The last chunk in a message is flagged as such and includes an addition zero ID
+appended to the end of its authenticated data.
 
 ## TODO
 
-* The fact that the last chunk is indeed the last chunk isn't
-  authenticated. Probably better to skip the empty chunk and just flag the last
-  actual chunk, including whether or not it's last in the AD.
 * Yes, I'm echoing your passphrase back to you. I said don't use this.
 * Curve25519 provides ~128 bits of security, but ChaCha20 provides 256
   bits. It's a bit of a mismatch, but there isn't a Go impl of Curve41417 or

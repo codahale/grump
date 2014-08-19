@@ -46,9 +46,8 @@ func (m *Header) GetKeys() []*Header_Key {
 }
 
 // Each recipient has a copy of the message key, encrypted with
-// ChaCha20Poly1305, using the first 32 bytes of the ChaCha20 key stream given
-// the Curve25519 ECDH key shared by the receipient and the author of the
-// message.
+// ChaCha20Poly1305, using the SHA-256 hash of the Curve25519 ECDH key shared
+// by the receipient and the author of the message as the key.
 type Header_Key struct {
 	Nonce            []byte `protobuf:"bytes,1,req,name=nonce" json:"nonce,omitempty"`
 	Ciphertext       []byte `protobuf:"bytes,2,req,name=ciphertext" json:"ciphertext,omitempty"`
@@ -75,7 +74,7 @@ func (m *Header_Key) GetCiphertext() []byte {
 
 // The remaining portion of the message consists of chunks, which are
 // sequentially-numbered portions of the original message. Each is encrypted
-// with ChaCha20-Poly1305, using the message key and a unique nonce.
+// with ChaCha20Poly1305, using the message key and a unique nonce.
 //
 // The chunk IDs which have already been writte (including the current chunk ID)
 // are serialized in order (i.e., for chunk #4: [1, 2, 3, 4]) as 32-bit
@@ -89,7 +88,7 @@ type Chunk struct {
 	Id               *uint32 `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
 	Nonce            []byte  `protobuf:"bytes,2,req,name=nonce" json:"nonce,omitempty"`
 	Ciphertext       []byte  `protobuf:"bytes,3,req,name=ciphertext" json:"ciphertext,omitempty"`
-	Last             *bool   `protobuf:"varint,4,opt,name=last" json:"last,omitempty"`
+	Last             *bool   `protobuf:"varint,4,req,name=last" json:"last,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
 

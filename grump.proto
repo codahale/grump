@@ -28,14 +28,13 @@ message Header {
 // little-endian integers (i.e. for chunk #2: [0x01, 0x00, 0x00, 0x00, 0x02,
 // 0x00, 0x00, 0x00]) and used as the authenticated data for each chunk.
 //
-// The last chunk does not contain message data, but rather encrypts no data and
-// uses the full series of chunk IDs (including that of the last chunk) as the
-// authenticated data.
+// The last chunk includes a final zero ID in its authenticated data to prevent
+// tampering.
 message Chunk {
   required uint32 id         = 1;
   required bytes  nonce      = 2;
   required bytes  ciphertext = 3;
-  optional bool   last       = 4;
+  required bool   last       = 4;
 }
 
 // Private keys are stored encrypted with a ChaCha20Poly1305 key derived via
