@@ -2,6 +2,7 @@ package grump
 
 import (
 	"bytes"
+	"io/ioutil"
 	"testing"
 )
 
@@ -175,3 +176,65 @@ func TestDecryptBadPassphrase(t *testing.T) {
 
 }
 
+func BenchmarkGenerateKeyPair(b *testing.B) {
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		GenerateKeyPair("woo", 1<<20, 8, 1)
+	}
+}
+
+func BenchmarkEncrypt(b *testing.B) {
+	pub, priv, err := GenerateKeyPair("woo", 2, 8, 1)
+	if err != nil {
+		b.Fatal(err)
+	}
+	recipients := []PublicKey{pub}
+	message := make([]byte, 1024*1024)
+
+	b.SetBytes(1024 * 1024)
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		Encrypt(
+			priv,
+			"woo",
+			recipients,
+			bytes.NewReader(message),
+			ioutil.Discard,
+			1024*64,
+		)
+	}
+}
+
+func BenchmarkDecrypt(b *testing.B) {
+	pub, priv, err := GenerateKeyPair("woo", 2, 8, 1)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	message := make([]byte, 1024*1024)
+	encryptedMessage := bytes.NewBuffer(nil)
+	if err := Encrypt(
+		priv, "woo",
+		[]PublicKey{pub},
+		bytes.NewReader(message),
+		encryptedMessage,
+		1024*64,
+	); err != nil {
+		b.Fatal(err)
+	}
+	message = encryptedMessage.Bytes()
+
+	b.SetBytes(1024 * 1024)
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		Decrypt(
+			priv, "woo",
+			pub,
+			bytes.NewReader(message),
+			ioutil.Discard,
+		)
+	}
+}
