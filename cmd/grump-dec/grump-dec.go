@@ -11,8 +11,8 @@ import (
 
 func main() {
 	var (
-		pubKeyName  = flag.String("sender", "out.pub", "public key name")
-		privKeyName = flag.String("key", "out.priv", "private key name")
+		pubKeyName  = flag.String("pub", "", "public key name")
+		privKeyName = flag.String("priv", "", "private key name")
 		inFile      = flag.String("in", "", "input file name")
 		outFile     = flag.String("out", "", "output file name")
 	)

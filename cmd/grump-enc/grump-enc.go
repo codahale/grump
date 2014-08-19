@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -11,8 +12,7 @@ import (
 
 func main() {
 	var (
-		pubKeyName  = flag.String("recipient", "out.pub", "public key name")
-		privKeyName = flag.String("key", "out.priv", "private key name")
+		privKeyName = flag.String("priv", "", "private key name")
 		inFile      = flag.String("in", "", "input file name")
 		outFile     = flag.String("out", "", "output file name")
 	)
@@ -27,9 +27,21 @@ func main() {
 		die(err)
 	}
 
-	recipient, err := ioutil.ReadFile(*pubKeyName)
-	if err != nil {
-		die(err)
+	var recipients []grump.PublicKey
+	for _, filename := range flag.Args() {
+		if filename == "-" { // generate a fake recipient
+			recipient := make([]byte, 32)
+			if _, err := rand.Read(recipient); err != nil {
+				die(err)
+			}
+			recipients = append(recipients, recipient)
+		} else {
+			recipient, err := ioutil.ReadFile(filename)
+			if err != nil {
+				die(err)
+			}
+			recipients = append(recipients, recipient)
+		}
 	}
 
 	in, err := os.Open(*inFile)
@@ -47,7 +59,7 @@ func main() {
 	if err := grump.Encrypt(
 		privKey,
 		passphrase,
-		[]grump.PublicKey{recipient},
+		recipients,
 		in,
 		out,
 		1024*1024,
