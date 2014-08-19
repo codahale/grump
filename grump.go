@@ -31,14 +31,14 @@ var ErrBadPassphrase = errors.New("bad passphrase")
 // key with the given passphrase and scrypt parameters.
 func GenerateKeyPair(passphrase string, n, r, p int) (PublicKey, PrivateKey, error) {
 	// generate the key pair
-	var publicKey, privateKey [32]byte
+	var publicKey, privateKey [ecKeySize]byte
 	if _, err := rand.Read(privateKey[:]); err != nil {
 		return nil, nil, err
 	}
 	curve25519.ScalarBaseMult(&publicKey, &privateKey)
 
 	// derive the symmetric key from the passphrase
-	salt := make([]byte, 32)
+	salt := make([]byte, saltSize)
 	if _, err := rand.Read(salt); err != nil {
 		return nil, nil, err
 	}
@@ -244,7 +244,7 @@ func loadKeyPair(passphrase string, buf []byte) ([]byte, []byte, error) {
 		return nil, nil, ErrBadPassphrase
 	}
 
-	var pubKey, privKey [32]byte
+	var pubKey, privKey [ecKeySize]byte
 	copy(privKey[:], privateKey)
 
 	curve25519.ScalarBaseMult(&pubKey, &privKey)
@@ -291,7 +291,7 @@ func recoverKey(privateKey PrivateKey, senderKey PublicKey, header *pb.Header) (
 // the Curve25519 ECDH shared secret for the two keys.
 func sharedSecretAEAD(privateKey PrivateKey, publicKey PublicKey) cipher.AEAD {
 	// perform Curve25519 ECDH
-	var privKey, pubKey, sharedKey [32]byte
+	var privKey, pubKey, sharedKey [ecKeySize]byte
 	copy(privKey[:], privateKey)
 	copy(pubKey[:], publicKey)
 	curve25519.ScalarMult(&sharedKey, &privKey, &pubKey)
@@ -362,3 +362,8 @@ func (l *idList) add(id uint32) []byte {
 	l.data = append(l.data, l.buf...)
 	return l.data
 }
+
+const (
+	saltSize  = 32
+	ecKeySize = 32
+)
