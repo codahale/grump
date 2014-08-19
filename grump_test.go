@@ -121,3 +121,41 @@ func TestEndToEnd(t *testing.T) {
 		)
 	}
 }
+
+func TestEncryptBadPassphrase(t *testing.T) {
+	pub, priv, err := GenerateKeyPair("woo", 256, 8, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Encrypt(
+		priv,
+		"yay",
+		[]PublicKey{pub},
+		bytes.NewReader(nil),
+		bytes.NewBuffer(nil),
+		16,
+	); err != ErrBadPassphrase {
+		t.Fatalf("Expected 'bad passphrase', but got %v", err)
+	}
+
+}
+
+func TestDecryptBadPassphrase(t *testing.T) {
+	pub, priv, err := GenerateKeyPair("woo", 256, 8, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Decrypt(
+		priv,
+		"yay",
+		pub,
+		bytes.NewReader(nil),
+		bytes.NewBuffer(nil),
+	); err != ErrBadPassphrase {
+		t.Fatalf("Expected 'bad passphrase', but got %v", err)
+	}
+
+}
+

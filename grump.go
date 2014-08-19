@@ -23,6 +23,10 @@ type PublicKey []byte
 // scrypt.
 type PrivateKey []byte
 
+// ErrBadPassphrase is returned when the passphrase provided cannot decrypt the
+// given private key.
+var ErrBadPassphrase = errors.New("bad passphrase")
+
 // GenerateKeyPair creates a new Curve25519 key pair and encrypts the private
 // key with the given passphrase and scrypt parameters.
 func GenerateKeyPair(passphrase string, n, r, p int) (PublicKey, PrivateKey, error) {
@@ -237,7 +241,7 @@ func loadKeyPair(passphrase string, buf []byte) ([]byte, []byte, error) {
 
 	privateKey, err := aead.Open(nil, pk.Nonce, pk.Ciphertext, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, ErrBadPassphrase
 	}
 
 	var pubKey, privKey [32]byte
