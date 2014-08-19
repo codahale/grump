@@ -1,0 +1,51 @@
+package pb;
+
+// The header is the first structure in a Grump message, and contains a set of
+// keys--one for each recipient.
+//
+// The recipients of a message are not identified in the metadata. To decrypt a
+// session key, the recipients must iterate through the keys and try decrypting
+// each of them. Unused, random keys may be added to this set to confound
+// additional metadata analysis.
+message Header {
+  repeated Key keys = 1;
+
+  // Each recipient has a copy of the message key, encrypted with
+  // ChaCha20Poly1305, using the first 32 bytes of the ChaCha20 key stream given
+  // the Curve25519 ECDH key shared by the receipient and the author of the
+  // message.
+  message Key {
+    required bytes nonce      = 1;
+    required bytes ciphertext = 2;
+  }
+}
+
+// The remaining portion of the message consists of chunks, which are
+// sequentially-numbered portions of the original message. Each is encrypted
+// with ChaCha20-Poly1305, using the message key and a unique nonce.
+//
+// The chunk IDs which have already been writte (including the current chunk ID)
+// are serialized in order (i.e., for chunk #4: [1, 2, 3, 4]) as 32-bit
+// little-endian integers (i.e. for chunk #2: [0x01, 0x00, 0x00, 0x00, 0x02,
+// 0x00, 0x00, 0x00]) and used as the authenticated data for each chunk.
+//
+// The last chunk does not contain message data, but rather encrypts no data and
+// uses the full series of chunk IDs (including that of the last chunk) as the
+// authenticated data.
+message Chunk {
+  required uint32 id         = 1;
+  required bytes  nonce      = 2;
+  required bytes  ciphertext = 3;
+  optional bool   last       = 4;
+}
+
+// Private keys are stored encrypted with a ChaCha20Poly1305 key derived via
+// scrypt from a passphrase.
+message PrivateKey {
+  required uint64 N = 1; // the scrypt parameters used to generate the key
+  required uint64 r = 2;
+  required uint64 p = 3;
+  required bytes  salt = 4;
+  required bytes  nonce = 5; // a random nonce
+  required bytes  ciphertext = 6; // the ciphertext of the private key
+}
