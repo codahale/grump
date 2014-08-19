@@ -122,6 +122,22 @@ func TestEndToEnd(t *testing.T) {
 	}
 }
 
+func TestGenerateKeyPairBadParams(t *testing.T) {
+	pub, priv, err := GenerateKeyPair("woo", -100, 1, 1)
+
+	if pub != nil {
+		t.Errorf("Expected no public key, but got %v", pub)
+	}
+
+	if priv != nil {
+		t.Errorf("Expected no private key, but got %v", priv)
+	}
+
+	if err == nil {
+		t.Error("Expected an error, but got none")
+	}
+}
+
 func TestEncryptBadPassphrase(t *testing.T) {
 	pub, priv, err := GenerateKeyPair("woo", 256, 8, 1)
 	if err != nil {
