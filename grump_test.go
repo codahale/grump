@@ -41,6 +41,22 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Alice can decrypt the message
+	aliceMessage := bytes.NewBuffer(nil)
+	if err := Decrypt(
+		alicePriv,
+		"alice",
+		bobPub, // she needs to pretend the message was from Bob
+		bytes.NewReader(encryptedMessage.Bytes()),
+		aliceMessage,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(message, aliceMessage.Bytes()) {
+		t.Fatalf("Alice expected %v, but decrypted %v", message, aliceMessage.Bytes())
+	}
+
 	// Bob can decrypt the message
 	bobMessage := bytes.NewBuffer(nil)
 	if err := Decrypt(

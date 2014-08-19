@@ -26,48 +26,44 @@ type PrivateKey []byte
 // GenerateKeyPair creates a new Curve25519 key pair and encrypts the private
 // key with the given passphrase and scrypt parameters.
 func GenerateKeyPair(passphrase string, n, r, p int) (PublicKey, PrivateKey, error) {
+	// generate the key pair
 	var publicKey, privateKey [32]byte
-
 	if _, err := rand.Read(privateKey[:]); err != nil {
 		return nil, nil, err
 	}
-
 	curve25519.ScalarBaseMult(&publicKey, &privateKey)
 
+	// derive the symmetric key from the passphrase
 	salt := make([]byte, 32)
 	if _, err := rand.Read(salt); err != nil {
 		return nil, nil, err
 	}
-
 	key, err := scrypt.Key([]byte(passphrase), salt, n, r, p, chacha20poly1305.KeySize)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	// encrypt the private key
 	aead, _ := chacha20poly1305.NewChaCha20Poly1305(key)
-
 	nonce := make([]byte, aead.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, nil, err
 	}
-
 	ciphertext := aead.Seal(nil, nonce, privateKey[:], nil)
 
-	pk := &pb.PrivateKey{
+	// return the serialized private key and the public key
+	buf, err := proto.Marshal(&pb.PrivateKey{
 		N:          proto.Uint64(uint64(n)),
 		R:          proto.Uint64(uint64(r)),
 		P:          proto.Uint64(uint64(p)),
 		Salt:       salt,
 		Nonce:      nonce,
 		Ciphertext: ciphertext,
-	}
-
-	pkb, err := proto.Marshal(pk)
+	})
 	if err != nil {
 		return nil, nil, err
 	}
-
-	return publicKey[:], pkb, nil
+	return publicKey[:], buf, nil
 }
 
 // Encrypt first unlocks the given private key with the given passphrase, then
@@ -81,28 +77,29 @@ func Encrypt(
 	w io.Writer,
 	chunkSize int,
 ) error {
-	_, privKey, err := loadKeyPair(passphrase, privateKey)
-	if err != nil {
-		return err
-	}
-
 	mw := messageWriter{
 		w:       w,
 		sizeBuf: make([]byte, 4),
 	}
 
-	messageKey := make([]byte, chacha20poly1305.KeySize)
-	if _, err := rand.Read(messageKey); err != nil {
-		return err
-	}
-
-	header, err := generateHeader(privKey, messageKey, recipients)
+	// unlock the private key
+	_, privKey, err := loadKeyPair(passphrase, privateKey)
 	if err != nil {
 		return err
 	}
 
+	// generate a random message key
+	messageKey := make([]byte, chacha20poly1305.KeySize)
+	if _, err := rand.Read(messageKey); err != nil {
+		return err
+	}
 	aead, _ := chacha20poly1305.NewChaCha20Poly1305(messageKey)
 
+	// encrypt the message key for all recipients
+	header, err := generateHeader(privKey, messageKey, recipients)
+	if err != nil {
+		return err
+	}
 	if err := mw.writeMessage(header); err != nil {
 		return err
 	}
@@ -112,6 +109,7 @@ func Encrypt(
 	plaintext := make([]byte, chunkSize)
 	nonce := make([]byte, aead.NonceSize())
 
+	// iterate through the plaintext, encrypting chunks
 	var done bool
 	for !done {
 		n, err := io.ReadFull(r, plaintext)
@@ -127,7 +125,7 @@ func Encrypt(
 
 		ad := idList.add(id)
 		if done {
-			ad = idList.add(0)
+			ad = idList.add(0) // seal the last chunk
 		}
 		ciphertext := aead.Seal(nil, nonce, plaintext[:n], ad)
 
@@ -155,28 +153,27 @@ func Decrypt(
 	r io.Reader,
 	w io.Writer,
 ) error {
-	_, privKey, err := loadKeyPair(passphrase, privateKey)
-	if err != nil {
-		return err
-	}
-
 	mr := messageReader{
 		r:       r,
 		sizeBuf: make([]byte, 4),
 		maxSize: 1024 * 1024 * 10,
 	}
 
-	var header pb.Header
-
-	if err := mr.readMessage(&header); err != nil {
-		return err
-	}
-
-	messageKey, err := recoverKey(privKey, sender, &header)
+	// unlock the private key
+	_, privKey, err := loadKeyPair(passphrase, privateKey)
 	if err != nil {
 		return err
 	}
 
+	// read the header and decrypt the message key
+	var header pb.Header
+	if err := mr.readMessage(&header); err != nil {
+		return err
+	}
+	messageKey, err := recoverKey(privKey, sender, &header)
+	if err != nil {
+		return err
+	}
 	aead, err := chacha20poly1305.NewChaCha20Poly1305(messageKey)
 	if err != nil {
 		return err
@@ -185,6 +182,7 @@ func Decrypt(
 	idList := idList{buf: make([]byte, 4)}
 	var chunk pb.Chunk
 
+	// iterate through the chunks, decrypting them
 	for {
 		if err := mr.readMessage(&chunk); err == io.EOF {
 			return nil
@@ -194,7 +192,7 @@ func Decrypt(
 
 		ad := idList.add(chunk.GetId())
 		if chunk.GetLast() {
-			ad = idList.add(0)
+			ad = idList.add(0) // check that the last chunk is sealed
 		}
 
 		plaintext, err := aead.Open(nil, chunk.Nonce, chunk.Ciphertext, ad)
