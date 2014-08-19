@@ -105,64 +105,6 @@ func LoadKeyPair(r io.Reader, passphrase []byte) ([]byte, []byte, error) {
 	return pubKey[:], privateKey, nil
 }
 
-type messageReader struct {
-	r            io.Reader
-	sizeBuf, buf []byte
-	maxSize      int
-}
-
-func (mr messageReader) readMessage(msg proto.Message) error {
-	if _, err := io.ReadFull(mr.r, mr.sizeBuf); err != nil {
-		return err
-	}
-
-	size := int(binary.LittleEndian.Uint32(mr.sizeBuf))
-	if size > mr.maxSize {
-		return errors.New("frame too large")
-	}
-
-	if len(mr.buf) < size {
-		mr.buf = make([]byte, size)
-	}
-
-	if _, err := io.ReadFull(mr.r, mr.buf); err != nil {
-		return err
-	}
-
-	return proto.Unmarshal(mr.buf, msg)
-}
-
-type messageWriter struct {
-	w       io.Writer
-	sizeBuf []byte
-}
-
-func (mw messageWriter) writeMessage(msg proto.Message) error {
-	buf, err := proto.Marshal(msg)
-	if err != nil {
-		return err
-	}
-
-	binary.LittleEndian.PutUint32(mw.sizeBuf, uint32(len(buf)))
-
-	if _, err := mw.w.Write(mw.sizeBuf); err != nil {
-		return err
-	}
-
-	_, err = mw.w.Write(buf)
-	return err
-}
-
-type idList struct {
-	data, buf []byte
-}
-
-func (l *idList) add(id uint32) []byte {
-	binary.LittleEndian.PutUint32(l.buf, id)
-	l.data = append(l.data, l.buf...)
-	return l.data
-}
-
 func Encrypt(privateKey []byte, recipients [][]byte, r io.Reader, w io.Writer, chunkSize int) error {
 	mw := messageWriter{
 		w:       w,
@@ -335,101 +277,60 @@ func sharedSecretAEAD(privateKey, publicKey []byte) cipher.AEAD {
 	return aead
 }
 
-/*
-func GenerateKeyPair(passphrase string) (*pb.PublicKey, *pb.PrivateKey, error) {
-	var publicKey, privateKey [32]byte
-
-	if _, err := rand.Read(publicKey[:]); err != nil {
-		return nil, nil, err
-	}
-
-	curve25519.ScalarBaseMult(&publicKey, &privateKey)
-
-	salt := make([]byte, 32)
-	if _, err := rand.Read(salt); err != nil {
-		return nil, nil, err
-	}
-
-	key, err := scrypt.Key([]byte(passphrase), salt, 1<<16, 8, 1, 32)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	aead, err := chacha20poly1305.NewChaCha20Poly1305(key)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	nonce := make([]byte, aead.NonceSize())
-	if _, err := rand.Read(nonce); err != nil {
-		return nil, nil, err
-	}
-
-	pk := aead.Seal(nil, nonce, privateKey[:], nil)
-
-	return &pb.PublicKey{
-			Key: publicKey[:],
-		}, &pb.PrivateKey{
-			Nonce: nonce,
-			Key:   pk,
-		}, nil
+type messageReader struct {
+	r            io.Reader
+	sizeBuf, buf []byte
+	maxSize      int
 }
 
-func encryptChunk(id uint32, aead cipher.AEAD, r io.Reader) (*pb.Chunk, error) {
-	plaintext := make([]byte, 1024*1024)
-	n, err := io.ReadFull(r, plaintext)
+func (mr messageReader) readMessage(msg proto.Message) error {
+	if _, err := io.ReadFull(mr.r, mr.sizeBuf); err != nil {
+		return err
+	}
+
+	size := int(binary.LittleEndian.Uint32(mr.sizeBuf))
+	if size > mr.maxSize {
+		return errors.New("frame too large")
+	}
+
+	if len(mr.buf) < size {
+		mr.buf = make([]byte, size)
+	}
+
+	if _, err := io.ReadFull(mr.r, mr.buf); err != nil {
+		return err
+	}
+
+	return proto.Unmarshal(mr.buf, msg)
+}
+
+type messageWriter struct {
+	w       io.Writer
+	sizeBuf []byte
+}
+
+func (mw messageWriter) writeMessage(msg proto.Message) error {
+	buf, err := proto.Marshal(msg)
 	if err != nil {
-		return nil, err
-	}
-	plaintext = plaintext[:n]
-
-	nonce := make([]byte, aead.NonceSize())
-	if _, err := rand.Read(nonce); err != nil {
-		return nil, err
+		return err
 	}
 
-	data := make([]byte, 4)
-	binary.LittleEndian.PutUint32(data, id)
+	binary.LittleEndian.PutUint32(mw.sizeBuf, uint32(len(buf)))
 
-	ciphertext := aead.Seal(nil, nonce, plaintext, data)
-	return &pb.Chunk{Id: &id, Data: ciphertext, Nonce: nonce}, nil
-}
-
-func decryptChunk(id uint32, aead cipher.AEAD, chunk *pb.Chunk, w io.Writer) (int, error) {
-	data := make([]byte, 4)
-	binary.LittleEndian.PutUint32(data, id)
-
-	plaintext, err := aead.Open(nil, chunk.Nonce, chunk.Data, data)
-	if err != nil {
-		return -1, err
+	if _, err := mw.w.Write(mw.sizeBuf); err != nil {
+		return err
 	}
 
-	return w.Write(plaintext)
-}
-
-func generateChecksum(ids []uint32, aead cipher.AEAD) (*pb.Checksum, error) {
-	data := make([]byte, len(ids)*4)
-	for i, id := range ids {
-		binary.LittleEndian.PutUint32(data[i*4:], id)
-	}
-
-	nonce := make([]byte, aead.NonceSize())
-	if _, err := rand.Read(nonce); err != nil {
-		return nil, err
-	}
-
-	ciphertext := aead.Seal(nil, nonce, nil, data)
-
-	return &pb.Checksum{Nonce: nonce, Data: ciphertext}, nil
-}
-
-func validateChecksum(ids []uint32, aead cipher.AEAD, checksum *pb.Checksum) error {
-	data := make([]byte, len(ids)*4)
-	for i, id := range ids {
-		binary.LittleEndian.PutUint32(data[i*4:], id)
-	}
-
-	_, err := aead.Open(nil, checksum.Nonce, nil, checksum.Data)
+	_, err = mw.w.Write(buf)
 	return err
 }
-*/
+
+type idList struct {
+	data, buf []byte
+}
+
+func (l *idList) add(id uint32) []byte {
+	binary.LittleEndian.PutUint32(l.buf, id)
+	l.data = append(l.data, l.buf...)
+	return l.data
+}

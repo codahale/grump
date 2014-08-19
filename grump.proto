@@ -11,9 +11,8 @@ message Header {
   repeated Key keys = 1;
 
   // Each recipient has a copy of the message key, encrypted with
-  // ChaCha20Poly1305, using the first 32 bytes of the ChaCha20 key stream given
-  // the Curve25519 ECDH key shared by the receipient and the author of the
-  // message.
+  // ChaCha20Poly1305, using the SHA-256 hash of the Curve25519 ECDH key shared
+  // by the receipient and the author of the message as the key.
   message Key {
     required bytes nonce      = 1;
     required bytes ciphertext = 2;
@@ -22,7 +21,7 @@ message Header {
 
 // The remaining portion of the message consists of chunks, which are
 // sequentially-numbered portions of the original message. Each is encrypted
-// with ChaCha20-Poly1305, using the message key and a unique nonce.
+// with ChaCha20Poly1305, using the message key and a unique nonce.
 //
 // The chunk IDs which have already been writte (including the current chunk ID)
 // are serialized in order (i.e., for chunk #4: [1, 2, 3, 4]) as 32-bit
