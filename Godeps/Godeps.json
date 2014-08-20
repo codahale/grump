@@ -1,0 +1,46 @@
+{
+	"ImportPath": "github.com/codahale/grump",
+	"GoVersion": "go1.3.1",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "code.google.com/p/go.crypto/curve25519",
+			"Comment": "null-192",
+			"Rev": "2990fc550b9ff92bc33c848f92c87a305ae62934"
+		},
+		{
+			"ImportPath": "code.google.com/p/go.crypto/pbkdf2",
+			"Comment": "null-192",
+			"Rev": "2990fc550b9ff92bc33c848f92c87a305ae62934"
+		},
+		{
+			"ImportPath": "code.google.com/p/go.crypto/poly1305",
+			"Comment": "null-192",
+			"Rev": "2990fc550b9ff92bc33c848f92c87a305ae62934"
+		},
+		{
+			"ImportPath": "code.google.com/p/go.crypto/scrypt",
+			"Comment": "null-192",
+			"Rev": "2990fc550b9ff92bc33c848f92c87a305ae62934"
+		},
+		{
+			"ImportPath": "code.google.com/p/goprotobuf/proto",
+			"Comment": "go.r60-152",
+			"Rev": "36be16571e14f67e114bb0af619e5de2c1591679"
+		},
+		{
+			"ImportPath": "github.com/agl/ed25519",
+			"Rev": "c4161f4c7483313562781c61b9a20aba73daf9de"
+		},
+		{
+			"ImportPath": "github.com/codahale/chacha20",
+			"Rev": "f833b9b1dc924f734c9d8e0811c495ed00179d2e"
+		},
+		{
+			"ImportPath": "github.com/codahale/chacha20poly1305",
+			"Rev": "f70784fd13f4282edebbdd820d421fbb6c08184c"
+		}
+	]
+}
