@@ -7,6 +7,7 @@ import (
 	"errors"
 	"hash"
 	"io"
+	"math/big"
 
 	"code.google.com/p/go.crypto/curve25519"
 	"code.google.com/p/go.crypto/scrypt"
@@ -354,8 +355,12 @@ func generateHeader(
 	recipients []PublicKey,
 	sigHash hash.Hash,
 ) (*pb.Header, error) {
-	keys := make([]*pb.EncryptedData, len(recipients))
+	recipients, err := secureShuffle(recipients, messageKey)
+	if err != nil {
+		return nil, err
+	}
 
+	keys := make([]*pb.EncryptedData, len(recipients))
 	var pubKey pb.PublicKey
 	for i, buf := range recipients {
 		if err := proto.Unmarshal(buf, &pubKey); err != nil {
@@ -449,6 +454,22 @@ func ed25519Verify(verifyingKey, hash, sig []byte) bool {
 	copy(s[:], sig)
 
 	return ed25519.Verify(&pubKey, hash, &s)
+}
+
+func secureShuffle(keys []PublicKey, messageKey []byte) ([]PublicKey, error) {
+	k := make([]PublicKey, len(keys))
+	copy(k, keys)
+
+	for i := len(k) - 1; i > 1; i-- {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(i)))
+		if err != nil {
+			return nil, err
+		}
+		j := int(n.Int64())
+		k[i], k[j] = k[j], k[i]
+	}
+
+	return k, nil
 }
 
 // framedReader reads protobuf messages, framed with a 32-bit little-endian
