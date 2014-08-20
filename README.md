@@ -6,10 +6,12 @@ There is literally no reason why you should be looking at this.
 
 ## Keys
 
-Keys in Grump are very simple. A private key is a randomly generated 256-bit
-value, used as a Curve25519 key. It's stored on disk encrypted with
-ChaCha20Poly1305, using a key derived from your passphrase via scrypt, as a
-protobuf.
+A Grump private key is the combination of a Curve25519 decryption key and a
+Ed25519 signing key. Both are stored on disk encrypted with ChaCha20Poly1305,
+using a key derived from your passphrase via scrypt.
+
+A Grump public key is the combination of a Curve25519 encryption key and a
+Ed25519 verifying key.
 
 ## Messages
 
@@ -24,15 +26,14 @@ recipients.
 
 (To decrypt a message, one simply iterates through the recipients, trying each.)
 
-After the header comes a series of chunks of arbitrary sizes. Each chunk has a
-32-bit ID, a nonce, and the ciphertext, which is the data encrypted with
-ChaCha20Poly1305. To ensure that chunks are in the proper order, the sequence of
-IDs of the chunks which precede any chunk are used as the authenticated data for
-the chunk AEAD (e.g., chunk #4's authenticated data is `[1, 2, 3, 4]`, encoded
-as a series of little-endian 32-bit values).
+After the header comes a series of chunks of arbitrary sizes, which are portions
+of the plaintext encrypted with ChaCha20Poly1305. The last chunk in a message is
+flagged as such.
 
-The last chunk in a message is flagged as such and includes an addition zero ID
-appended to the end of its authenticated data.
+The final element of a message is an Ed25519 signature of the SHA-256 hash of
+every nonce and ciphertext (including those in the header) in the order they
+appear in the message. Any attempt to add or remove chunks (or recipients) will
+fail this verification.
 
 ## TODO
 

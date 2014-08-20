@@ -11,6 +11,8 @@ It is generated from these files:
 It has these top-level messages:
 	Header
 	Chunk
+	Signature
+	PublicKey
 	PrivateKey
 	EncryptedData
 */
@@ -24,16 +26,17 @@ var _ = proto.Marshal
 var _ = math.Inf
 
 // The header is the first structure in a Grump message, and contains a set of
-// keys--one for each recipient.
-//
-// The recipients of a message are not identified in the metadata. To decrypt a
-// session key, the recipients must iterate through the keys and try decrypting
-// each of them. Unused, random keys may be added to this set to confound
-// additional metadata analysis.
+// encrypted copies of the message key.
 type Header struct {
-	// Each recipient has a copy of the message key, encrypted with
-	// ChaCha20Poly1305, using the SHA-256 hash of the Curve25519 ECDH key shared
-	// by the receipient and the author of the message as the key.
+	// For each intended recipient of the message, a copy of the message key is
+	// added here, encrypted with the SHA-256 hash of the Curve25519 ECDH shared
+	// secret produced with the author's private key and the recipient's public
+	// key.
+	//
+	// The recipients of a message are not identified via metadata. To decrypt a
+	// session key, the recipients must iterate through the keys and try
+	// decrypting each of them. Unused, random keys may be added to this set to
+	// confound additional metadata analysis.
 	Keys             []*EncryptedData `protobuf:"bytes,1,rep,name=keys" json:"keys,omitempty"`
 	XXX_unrecognized []byte           `json:"-"`
 }
@@ -49,34 +52,17 @@ func (m *Header) GetKeys() []*EncryptedData {
 	return nil
 }
 
-// The remaining portion of the message consists of chunks, which are
-// sequentially-numbered portions of the original message. Each is encrypted
-// with ChaCha20Poly1305, using the message key and a unique nonce.
-//
-// The chunk IDs which have already been writte (including the current chunk ID)
-// are serialized in order (i.e., for chunk #4: [1, 2, 3, 4]) as 32-bit
-// little-endian integers (i.e. for chunk #2: [0x01, 0x00, 0x00, 0x00, 0x02,
-// 0x00, 0x00, 0x00]) and used as the authenticated data for each chunk.
-//
-// The last chunk includes a final zero ID in its authenticated data to prevent
-// tampering.
+// The body of the message consists of chunks, which are portions of the
+// original message, encrypted with the message key.
 type Chunk struct {
-	Id               *uint32        `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
-	Data             *EncryptedData `protobuf:"bytes,2,req,name=data" json:"data,omitempty"`
-	Last             *bool          `protobuf:"varint,3,req,name=last" json:"last,omitempty"`
+	Data             *EncryptedData `protobuf:"bytes,1,req,name=data" json:"data,omitempty"`
+	Last             *bool          `protobuf:"varint,2,req,name=last" json:"last,omitempty"`
 	XXX_unrecognized []byte         `json:"-"`
 }
 
 func (m *Chunk) Reset()         { *m = Chunk{} }
 func (m *Chunk) String() string { return proto.CompactTextString(m) }
 func (*Chunk) ProtoMessage()    {}
-
-func (m *Chunk) GetId() uint32 {
-	if m != nil && m.Id != nil {
-		return *m.Id
-	}
-	return 0
-}
 
 func (m *Chunk) GetData() *EncryptedData {
 	if m != nil {
@@ -92,14 +78,59 @@ func (m *Chunk) GetLast() bool {
 	return false
 }
 
-// Private keys are stored encrypted with a ChaCha20Poly1305 key derived via
-// scrypt from a passphrase.
+// The final part of a message is the Ed25519 signature of the SHA-256 hash of
+// every nonce and ciphertext in the header and in each chunk, in the order they
+// appear in the message.
+type Signature struct {
+	Signature        []byte `protobuf:"bytes,1,req,name=signature" json:"signature,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *Signature) Reset()         { *m = Signature{} }
+func (m *Signature) String() string { return proto.CompactTextString(m) }
+func (*Signature) ProtoMessage()    {}
+
+func (m *Signature) GetSignature() []byte {
+	if m != nil {
+		return m.Signature
+	}
+	return nil
+}
+
+// Public keys are stored in the clear.
+type PublicKey struct {
+	EncryptingKey    []byte `protobuf:"bytes,1,req,name=encryptingKey" json:"encryptingKey,omitempty"`
+	VerifyingKey     []byte `protobuf:"bytes,2,req,name=verifyingKey" json:"verifyingKey,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *PublicKey) Reset()         { *m = PublicKey{} }
+func (m *PublicKey) String() string { return proto.CompactTextString(m) }
+func (*PublicKey) ProtoMessage()    {}
+
+func (m *PublicKey) GetEncryptingKey() []byte {
+	if m != nil {
+		return m.EncryptingKey
+	}
+	return nil
+}
+
+func (m *PublicKey) GetVerifyingKey() []byte {
+	if m != nil {
+		return m.VerifyingKey
+	}
+	return nil
+}
+
+// Private keys are stored encrypted with a key derived via scrypt from a
+// passphrase.
 type PrivateKey struct {
 	N                *uint64        `protobuf:"varint,1,req" json:"N,omitempty"`
 	R                *uint64        `protobuf:"varint,2,req,name=r" json:"r,omitempty"`
 	P                *uint64        `protobuf:"varint,3,req,name=p" json:"p,omitempty"`
 	Salt             []byte         `protobuf:"bytes,4,req,name=salt" json:"salt,omitempty"`
-	Key              *EncryptedData `protobuf:"bytes,5,req,name=key" json:"key,omitempty"`
+	DecryptingKey    *EncryptedData `protobuf:"bytes,5,req,name=decryptingKey" json:"decryptingKey,omitempty"`
+	SigningKey       *EncryptedData `protobuf:"bytes,6,req,name=signingKey" json:"signingKey,omitempty"`
 	XXX_unrecognized []byte         `json:"-"`
 }
 
@@ -135,9 +166,16 @@ func (m *PrivateKey) GetSalt() []byte {
 	return nil
 }
 
-func (m *PrivateKey) GetKey() *EncryptedData {
+func (m *PrivateKey) GetDecryptingKey() *EncryptedData {
 	if m != nil {
-		return m.Key
+		return m.DecryptingKey
+	}
+	return nil
+}
+
+func (m *PrivateKey) GetSigningKey() *EncryptedData {
+	if m != nil {
+		return m.SigningKey
 	}
 	return nil
 }

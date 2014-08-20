@@ -42,22 +42,6 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Alice can decrypt the message
-	aliceMessage := bytes.NewBuffer(nil)
-	if err := Decrypt(
-		alicePriv,
-		"alice",
-		bobPub, // she needs to pretend the message was from Bob
-		bytes.NewReader(encryptedMessage.Bytes()),
-		aliceMessage,
-	); err != nil {
-		t.Fatal(err)
-	}
-
-	if !bytes.Equal(message, aliceMessage.Bytes()) {
-		t.Fatalf("Alice expected %v, but decrypted %v", message, aliceMessage.Bytes())
-	}
-
 	// Bob can decrypt the message
 	bobMessage := bytes.NewBuffer(nil)
 	if err := Decrypt(
@@ -98,16 +82,16 @@ func TestEndToEnd(t *testing.T) {
 		alicePub,
 		bytes.NewReader(encryptedMessage.Bytes()),
 		eveMessage,
-	); err == nil {
+	); err != ErrNotDecryptable {
 		t.Fatalf(
-			"Eve shouldn't have been able to decrypt the message, but got %v",
-			eveMessage.Bytes(),
+			"Eve shouldn't have been able to decrypt the message, but got %v (%v)",
+			eveMessage.Bytes(), err,
 		)
 	}
 
 	// Mallory cannot modify the message
 	modifiedMessage := encryptedMessage.Bytes()
-	modifiedMessage[90] ^= 32 // boop
+	modifiedMessage[300] ^= 32 // boop
 	malloryMessage := bytes.NewBuffer(nil)
 	if err := Decrypt(
 		carolPriv,
@@ -115,10 +99,10 @@ func TestEndToEnd(t *testing.T) {
 		alicePub,
 		bytes.NewReader(encryptedMessage.Bytes()),
 		malloryMessage,
-	); err == nil {
+	); err != ErrBadSignature {
 		t.Fatalf(
-			"Mallory shouldn't have been able to modify the message, but Carol got %v",
-			malloryMessage.Bytes(),
+			"Mallory shouldn't have been able to modify the message, but Carol got %v (%v)",
+			malloryMessage.Bytes(), err,
 		)
 	}
 }
