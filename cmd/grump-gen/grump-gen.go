@@ -1,3 +1,4 @@
+// grump-gen generates new Grump key pairs.
 package main
 
 import (

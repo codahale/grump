@@ -1,3 +1,4 @@
+// grump-dec decrypts Grump files.
 package main
 
 import (

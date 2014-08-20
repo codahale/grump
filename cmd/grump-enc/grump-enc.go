@@ -1,3 +1,4 @@
+// grump-enc encrypts files using Grump keys.
 package main
 
 import (
