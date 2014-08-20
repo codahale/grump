@@ -8,15 +8,10 @@ package pb;
 // each of them. Unused, random keys may be added to this set to confound
 // additional metadata analysis.
 message Header {
-  repeated Key keys = 1;
-
   // Each recipient has a copy of the message key, encrypted with
   // ChaCha20Poly1305, using the SHA-256 hash of the Curve25519 ECDH key shared
   // by the receipient and the author of the message as the key.
-  message Key {
-    required bytes nonce      = 1;
-    required bytes ciphertext = 2;
-  }
+  repeated EncryptedData keys = 1;
 }
 
 // The remaining portion of the message consists of chunks, which are
@@ -31,19 +26,23 @@ message Header {
 // The last chunk includes a final zero ID in its authenticated data to prevent
 // tampering.
 message Chunk {
-  required uint32 id         = 1;
-  required bytes  nonce      = 2;
-  required bytes  ciphertext = 3;
-  required bool   last       = 4;
+  required uint32        id   = 1;
+  required EncryptedData data = 2;
+  required bool          last = 3;
 }
 
 // Private keys are stored encrypted with a ChaCha20Poly1305 key derived via
 // scrypt from a passphrase.
 message PrivateKey {
-  required uint64 N = 1; // the scrypt parameters used to generate the key
-  required uint64 r = 2;
-  required uint64 p = 3;
-  required bytes  salt = 4;
-  required bytes  nonce = 5; // a random nonce
-  required bytes  ciphertext = 6; // the ciphertext of the private key
+  required uint64           N = 1; // the scrypt parameters
+  required uint64           r = 2;
+  required uint64           p = 3;
+  required bytes         salt = 4;
+  required EncryptedData  key = 5; // the encrypted private key
+}
+
+// Data encrypted with ChaCha290Poly1305.
+message EncryptedData {
+  required bytes nonce      = 1; // a random nonce
+  required bytes ciphertext = 2; // the ciphertext, including Poly1305 tag
 }

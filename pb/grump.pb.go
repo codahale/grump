@@ -12,6 +12,7 @@ It has these top-level messages:
 	Header
 	Chunk
 	PrivateKey
+	EncryptedData
 */
 package pb
 
@@ -30,44 +31,20 @@ var _ = math.Inf
 // each of them. Unused, random keys may be added to this set to confound
 // additional metadata analysis.
 type Header struct {
-	Keys             []*Header_Key `protobuf:"bytes,1,rep,name=keys" json:"keys,omitempty"`
-	XXX_unrecognized []byte        `json:"-"`
+	// Each recipient has a copy of the message key, encrypted with
+	// ChaCha20Poly1305, using the SHA-256 hash of the Curve25519 ECDH key shared
+	// by the receipient and the author of the message as the key.
+	Keys             []*EncryptedData `protobuf:"bytes,1,rep,name=keys" json:"keys,omitempty"`
+	XXX_unrecognized []byte           `json:"-"`
 }
 
 func (m *Header) Reset()         { *m = Header{} }
 func (m *Header) String() string { return proto.CompactTextString(m) }
 func (*Header) ProtoMessage()    {}
 
-func (m *Header) GetKeys() []*Header_Key {
+func (m *Header) GetKeys() []*EncryptedData {
 	if m != nil {
 		return m.Keys
-	}
-	return nil
-}
-
-// Each recipient has a copy of the message key, encrypted with
-// ChaCha20Poly1305, using the SHA-256 hash of the Curve25519 ECDH key shared
-// by the receipient and the author of the message as the key.
-type Header_Key struct {
-	Nonce            []byte `protobuf:"bytes,1,req,name=nonce" json:"nonce,omitempty"`
-	Ciphertext       []byte `protobuf:"bytes,2,req,name=ciphertext" json:"ciphertext,omitempty"`
-	XXX_unrecognized []byte `json:"-"`
-}
-
-func (m *Header_Key) Reset()         { *m = Header_Key{} }
-func (m *Header_Key) String() string { return proto.CompactTextString(m) }
-func (*Header_Key) ProtoMessage()    {}
-
-func (m *Header_Key) GetNonce() []byte {
-	if m != nil {
-		return m.Nonce
-	}
-	return nil
-}
-
-func (m *Header_Key) GetCiphertext() []byte {
-	if m != nil {
-		return m.Ciphertext
 	}
 	return nil
 }
@@ -81,15 +58,13 @@ func (m *Header_Key) GetCiphertext() []byte {
 // little-endian integers (i.e. for chunk #2: [0x01, 0x00, 0x00, 0x00, 0x02,
 // 0x00, 0x00, 0x00]) and used as the authenticated data for each chunk.
 //
-// The last chunk does not contain message data, but rather encrypts no data and
-// uses the full series of chunk IDs (including that of the last chunk) as the
-// authenticated data.
+// The last chunk includes a final zero ID in its authenticated data to prevent
+// tampering.
 type Chunk struct {
-	Id               *uint32 `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
-	Nonce            []byte  `protobuf:"bytes,2,req,name=nonce" json:"nonce,omitempty"`
-	Ciphertext       []byte  `protobuf:"bytes,3,req,name=ciphertext" json:"ciphertext,omitempty"`
-	Last             *bool   `protobuf:"varint,4,req,name=last" json:"last,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
+	Id               *uint32        `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
+	Data             *EncryptedData `protobuf:"bytes,2,req,name=data" json:"data,omitempty"`
+	Last             *bool          `protobuf:"varint,3,req,name=last" json:"last,omitempty"`
+	XXX_unrecognized []byte         `json:"-"`
 }
 
 func (m *Chunk) Reset()         { *m = Chunk{} }
@@ -103,16 +78,9 @@ func (m *Chunk) GetId() uint32 {
 	return 0
 }
 
-func (m *Chunk) GetNonce() []byte {
+func (m *Chunk) GetData() *EncryptedData {
 	if m != nil {
-		return m.Nonce
-	}
-	return nil
-}
-
-func (m *Chunk) GetCiphertext() []byte {
-	if m != nil {
-		return m.Ciphertext
+		return m.Data
 	}
 	return nil
 }
@@ -127,13 +95,12 @@ func (m *Chunk) GetLast() bool {
 // Private keys are stored encrypted with a ChaCha20Poly1305 key derived via
 // scrypt from a passphrase.
 type PrivateKey struct {
-	N                *uint64 `protobuf:"varint,1,req" json:"N,omitempty"`
-	R                *uint64 `protobuf:"varint,2,req,name=r" json:"r,omitempty"`
-	P                *uint64 `protobuf:"varint,3,req,name=p" json:"p,omitempty"`
-	Salt             []byte  `protobuf:"bytes,4,req,name=salt" json:"salt,omitempty"`
-	Nonce            []byte  `protobuf:"bytes,5,req,name=nonce" json:"nonce,omitempty"`
-	Ciphertext       []byte  `protobuf:"bytes,6,req,name=ciphertext" json:"ciphertext,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
+	N                *uint64        `protobuf:"varint,1,req" json:"N,omitempty"`
+	R                *uint64        `protobuf:"varint,2,req,name=r" json:"r,omitempty"`
+	P                *uint64        `protobuf:"varint,3,req,name=p" json:"p,omitempty"`
+	Salt             []byte         `protobuf:"bytes,4,req,name=salt" json:"salt,omitempty"`
+	Key              *EncryptedData `protobuf:"bytes,5,req,name=key" json:"key,omitempty"`
+	XXX_unrecognized []byte         `json:"-"`
 }
 
 func (m *PrivateKey) Reset()         { *m = PrivateKey{} }
@@ -168,14 +135,32 @@ func (m *PrivateKey) GetSalt() []byte {
 	return nil
 }
 
-func (m *PrivateKey) GetNonce() []byte {
+func (m *PrivateKey) GetKey() *EncryptedData {
+	if m != nil {
+		return m.Key
+	}
+	return nil
+}
+
+// Data encrypted with ChaCha290Poly1305.
+type EncryptedData struct {
+	Nonce            []byte `protobuf:"bytes,1,req,name=nonce" json:"nonce,omitempty"`
+	Ciphertext       []byte `protobuf:"bytes,2,req,name=ciphertext" json:"ciphertext,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *EncryptedData) Reset()         { *m = EncryptedData{} }
+func (m *EncryptedData) String() string { return proto.CompactTextString(m) }
+func (*EncryptedData) ProtoMessage()    {}
+
+func (m *EncryptedData) GetNonce() []byte {
 	if m != nil {
 		return m.Nonce
 	}
 	return nil
 }
 
-func (m *PrivateKey) GetCiphertext() []byte {
+func (m *EncryptedData) GetCiphertext() []byte {
 	if m != nil {
 		return m.Ciphertext
 	}

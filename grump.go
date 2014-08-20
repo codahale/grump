@@ -57,12 +57,14 @@ func GenerateKeyPair(passphrase string, n, r, p int) (PublicKey, PrivateKey, err
 
 	// return the serialized private key and the public key
 	buf, err := proto.Marshal(&pb.PrivateKey{
-		N:          proto.Uint64(uint64(n)),
-		R:          proto.Uint64(uint64(r)),
-		P:          proto.Uint64(uint64(p)),
-		Salt:       salt,
-		Nonce:      nonce,
-		Ciphertext: ciphertext,
+		N:    proto.Uint64(uint64(n)),
+		R:    proto.Uint64(uint64(r)),
+		P:    proto.Uint64(uint64(p)),
+		Salt: salt,
+		Key: &pb.EncryptedData{
+			Nonce:      nonce,
+			Ciphertext: ciphertext,
+		},
 	})
 	if err != nil {
 		return nil, nil, err
@@ -134,10 +136,12 @@ func Encrypt(
 		ciphertext := aead.Seal(nil, nonce, plaintext[:n], ad)
 
 		if err := mw.writeMessage(&pb.Chunk{
-			Id:         &id,
-			Nonce:      nonce,
-			Ciphertext: ciphertext,
-			Last:       proto.Bool(done),
+			Id: &id,
+			Data: &pb.EncryptedData{
+				Nonce:      nonce,
+				Ciphertext: ciphertext,
+			},
+			Last: proto.Bool(done),
 		}); err != nil {
 			return err
 		}
@@ -199,7 +203,8 @@ func Decrypt(
 			ad = idList.add(0) // check that the last chunk is sealed
 		}
 
-		plaintext, err := aead.Open(nil, chunk.Nonce, chunk.Ciphertext, ad)
+		ed := chunk.GetData()
+		plaintext, err := aead.Open(nil, ed.Nonce, ed.Ciphertext, ad)
 		if err != nil {
 			return err
 		}
@@ -239,7 +244,8 @@ func loadKeyPair(passphrase string, buf []byte) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
-	privateKey, err := aead.Open(nil, pk.Nonce, pk.Ciphertext, nil)
+	k := pk.GetKey()
+	privateKey, err := aead.Open(nil, k.Nonce, k.Ciphertext, nil)
 	if err != nil {
 		return nil, nil, ErrBadPassphrase
 	}
@@ -253,7 +259,7 @@ func loadKeyPair(passphrase string, buf []byte) ([]byte, []byte, error) {
 }
 
 func generateHeader(privateKey PrivateKey, messageKey []byte, recipients []PublicKey) (*pb.Header, error) {
-	keys := make([]*pb.Header_Key, len(recipients))
+	keys := make([]*pb.EncryptedData, len(recipients))
 
 	for i, recipientKey := range recipients {
 		aead := sharedSecretAEAD(privateKey, recipientKey)
@@ -265,7 +271,7 @@ func generateHeader(privateKey PrivateKey, messageKey []byte, recipients []Publi
 		}
 
 		// and encrypt the message key
-		keys[i] = &pb.Header_Key{
+		keys[i] = &pb.EncryptedData{
 			Nonce:      nonce,
 			Ciphertext: aead.Seal(nil, nonce, messageKey, nil),
 		}
