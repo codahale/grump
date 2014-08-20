@@ -26,13 +26,13 @@ recipients.
 
 (To decrypt a message, one simply iterates through the recipients, trying each.)
 
-After the header comes a series of chunks of arbitrary sizes, which are portions
-of the plaintext encrypted with ChaCha20Poly1305. The last chunk in a message is
-flagged as such.
+After the header comes a series of packets of arbitrary sizes, which are
+portions of the plaintext encrypted with ChaCha20Poly1305. The last packet in a
+message is flagged as such.
 
 The final element of a message is an Ed25519 signature of the SHA-256 hash of
 every nonce and ciphertext (including those in the header) in the order they
-appear in the message. Any attempt to add or remove chunks (or recipients) will
+appear in the message. Any attempt to add or remove packets (or recipients) will
 fail this verification.
 
 ## TODO

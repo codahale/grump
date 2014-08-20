@@ -10,7 +10,7 @@ It is generated from these files:
 
 It has these top-level messages:
 	Header
-	Chunk
+	Packet
 	Signature
 	PublicKey
 	PrivateKey
@@ -52,26 +52,26 @@ func (m *Header) GetKeys() []*EncryptedData {
 	return nil
 }
 
-// The body of the message consists of chunks, which are portions of the
+// The body of the message consists of data packets, which are portions of the
 // original message, encrypted with the message key.
-type Chunk struct {
+type Packet struct {
 	Data             *EncryptedData `protobuf:"bytes,1,req,name=data" json:"data,omitempty"`
 	Last             *bool          `protobuf:"varint,2,req,name=last" json:"last,omitempty"`
 	XXX_unrecognized []byte         `json:"-"`
 }
 
-func (m *Chunk) Reset()         { *m = Chunk{} }
-func (m *Chunk) String() string { return proto.CompactTextString(m) }
-func (*Chunk) ProtoMessage()    {}
+func (m *Packet) Reset()         { *m = Packet{} }
+func (m *Packet) String() string { return proto.CompactTextString(m) }
+func (*Packet) ProtoMessage()    {}
 
-func (m *Chunk) GetData() *EncryptedData {
+func (m *Packet) GetData() *EncryptedData {
 	if m != nil {
 		return m.Data
 	}
 	return nil
 }
 
-func (m *Chunk) GetLast() bool {
+func (m *Packet) GetLast() bool {
 	if m != nil && m.Last != nil {
 		return *m.Last
 	}
@@ -79,8 +79,8 @@ func (m *Chunk) GetLast() bool {
 }
 
 // The final part of a message is the Ed25519 signature of the SHA-256 hash of
-// every nonce and ciphertext in the header and in each chunk, in the order they
-// appear in the message.
+// every nonce and ciphertext in the header and in each packet, in the order
+// they appear in the message.
 type Signature struct {
 	Signature        []byte `protobuf:"bytes,1,req,name=signature" json:"signature,omitempty"`
 	XXX_unrecognized []byte `json:"-"`

@@ -130,7 +130,7 @@ func Encrypt(
 	recipients []PublicKey,
 	r io.Reader,
 	w io.Writer,
-	chunkSize int,
+	packetSize int,
 ) error {
 	sigHash := sha256.New()
 
@@ -161,10 +161,10 @@ func Encrypt(
 		return err
 	}
 
-	plaintext := make([]byte, chunkSize)
+	plaintext := make([]byte, packetSize)
 	nonce := make([]byte, aead.NonceSize())
 
-	// iterate through the plaintext, encrypting chunks
+	// iterate through the plaintext, encrypting packets
 	var done bool
 	for !done {
 		// read N bytes of plaintext
@@ -187,8 +187,8 @@ func Encrypt(
 		_, _ = sigHash.Write(nonce)
 		_, _ = sigHash.Write(ciphertext)
 
-		// write the chunk
-		if err := fw.writeMessage(&pb.Chunk{
+		// write the packet
+		if err := fw.writeMessage(&pb.Packet{
 			Data: &pb.EncryptedData{
 				Nonce:      nonce,
 				Ciphertext: ciphertext,
@@ -256,19 +256,19 @@ func Decrypt(
 		_, _ = sigHash.Write(ed.Ciphertext)
 	}
 
-	var chunk pb.Chunk
+	var packet pb.Packet
 
-	// iterate through the chunks, decrypting them
+	// iterate through the packets, decrypting them
 	for {
-		// decode a chunk
-		if err := fr.readMessage(&chunk); err == io.EOF {
+		// decode a packet
+		if err := fr.readMessage(&packet); err == io.EOF {
 			return nil
 		} else if err != nil {
 			return err
 		}
 
 		// hash the nonce and ciphertext
-		ed := chunk.Data
+		ed := packet.Data
 		_, _ = sigHash.Write(ed.Nonce)
 		_, _ = sigHash.Write(ed.Ciphertext)
 
@@ -283,8 +283,8 @@ func Decrypt(
 			return err
 		}
 
-		// and break if it's the last chunk
-		if chunk.GetLast() {
+		// and break if it's the last packet
+		if packet.GetLast() {
 			break
 		}
 	}
