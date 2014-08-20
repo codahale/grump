@@ -154,7 +154,7 @@ func Encrypt(
 	aead, _ := chacha20poly1305.NewChaCha20Poly1305(messageKey)
 
 	// encrypt the message key for all recipients
-	header, err := generateHeader(decryptingKey, messageKey, recipients, sigHash)
+	header, err := encryptMessageKey(decryptingKey, messageKey, recipients, sigHash)
 	if err != nil {
 		return err
 	}
@@ -347,9 +347,9 @@ func decryptPrivateKey(passphrase string, pubKey []byte) ([]byte, []byte, error)
 	return decryptingKey, signingKey, nil
 }
 
-// generateHeader returns a header with encrypted copies of the message key for
+// encryptMessageKey returns a header with encrypted copies of the message key for
 // each recipient.
-func generateHeader(
+func encryptMessageKey(
 	decryptingKey,
 	messageKey []byte,
 	recipients []PublicKey,
