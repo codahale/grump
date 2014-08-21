@@ -78,7 +78,7 @@ func (m *Packet) GetLast() bool {
 	return false
 }
 
-// The final part of a message is the Ed25519 signature of the SHA-256 hash of
+// The final part of a message is the Ed25519 signature of the SHA-512 hash of
 // every nonce and ciphertext in the header and in each packet, in the order
 // they appear in the message.
 type Signature struct {

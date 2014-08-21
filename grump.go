@@ -3,6 +3,7 @@ package grump
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/binary"
 	"errors"
 	"hash"
@@ -133,7 +134,7 @@ func Encrypt(
 	w io.Writer,
 	packetSize int,
 ) error {
-	sigHash := sha256.New()
+	sigHash := sha512.New()
 
 	fw := framedWriter{
 		w:       w,
@@ -216,7 +217,7 @@ func Decrypt(
 	r io.Reader,
 	w io.Writer,
 ) error {
-	sigHash := sha256.New()
+	sigHash := sha512.New()
 
 	fr := framedReader{
 		r:       r,
