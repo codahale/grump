@@ -1,5 +1,7 @@
 # Grump
 
+[![Build Status](https://travis-ci.org/codahale/grump.png?branch=master)](https://travis-ci.org/codahale/grump)
+
 Grump is an experiment in building a post-PGP, post-Snowden cryptosystem for
 asynchronously sending confidential and authentic messages of arbitrary
 size. **It is an experiment, and should literally never be used in a context
