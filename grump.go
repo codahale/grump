@@ -46,8 +46,6 @@ var (
 const (
 	// MaxFrameSize is the maximum allowable size for a protobuf frame.
 	MaxFrameSize = 1024 * 1024 * 10
-
-	saltSize = 32 // 256-bit salts
 )
 
 // GenerateKeyPair creates a new Curve25519 key pair and encrypts the private
@@ -69,7 +67,7 @@ func GenerateKeyPair(
 	}
 
 	// derive the symmetric key from the passphrase
-	salt := make([]byte, saltSize)
+	salt := make([]byte, 32) // 256-bit salt
 	if _, err := rand.Read(salt); err != nil {
 		return nil, nil, err
 	}
