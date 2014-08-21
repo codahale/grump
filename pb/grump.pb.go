@@ -53,7 +53,8 @@ func (m *Header) GetKeys() []*EncryptedData {
 }
 
 // The body of the message consists of data packets, which are portions of the
-// original message, encrypted with the message key.
+// original message, encrypted with the message key, and using the SHA-512 hash
+// of all the bytes in the message which precede it as the authenticated data.
 type Packet struct {
 	Data             *EncryptedData `protobuf:"bytes,1,req,name=data" json:"data,omitempty"`
 	Last             *bool          `protobuf:"varint,2,req,name=last" json:"last,omitempty"`
@@ -79,8 +80,7 @@ func (m *Packet) GetLast() bool {
 }
 
 // The final part of a message is the Ed25519 signature of the SHA-512 hash of
-// every nonce and ciphertext in the header and in each packet, in the order
-// they appear in the message.
+// all bytes in the message which precede the signature's frame.
 type Signature struct {
 	Signature        []byte `protobuf:"bytes,1,req,name=signature" json:"signature,omitempty"`
 	XXX_unrecognized []byte `json:"-"`

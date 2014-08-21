@@ -128,13 +128,20 @@ encrypt a message key copy.
 
 #### A Non-Recipient Attempts To Modify A Message
 
-A more crafty attacker may attempt to modify a message.
+A more crafty attacker may attempt to modify an existing message.
+
+If they modify the header, either by adding junk recipients or by removing valid
+recipients, the resulting message will be considered invalid when the first
+packet fails to decrypt due to the SHA-512 hash of the header being different.
 
 If they modify either the nonce or the ciphertext of a packet in the message,
 ChaCha20Poly1305 will fail to authenticate and decryption will halt.
 
-If they duplicate a packet or modify the order of the packets, the Ed25519
-signature will fail to verify and decryption will halt.
+If they duplicate a packet or modify the order of the packets, the SHA-512 hash
+will change and that packet and all following packets will fail to decrypt.
+
+Finally, the Ed25519 signature will fail to verify if any non-signature bytes in
+the message change.
 
 #### A Recipient Attempts To Modify A Message
 
@@ -150,6 +157,9 @@ framing metadata. An attacker can craft a message which has protobuf frames
 which are up to 4GiB. Grump implementations should perform hygiene checks on
 these values, and Protocol Buffer implementations should be checked for
 robustness to these types of attacks.
+
+If a packet's frame is changed to, for example, elide data, the SHA-512 hash
+will change and the packet will become invalid.
 
 ## Design
 
@@ -199,13 +209,13 @@ recipients.
 (To decrypt a message, one simply iterates through the recipients, trying each.)
 
 After the header comes a series of packets of arbitrary sizes, which are
-portions of the plaintext encrypted with ChaCha20Poly1305. The last packet in a
-message is flagged as such.
+portions of the plaintext encrypted with ChaCha20Poly1305, using the SHA-512
+hash of all previously written bytes as the authenticated data. The last packet
+in a message is flagged as such.
 
 The final element of a message is an Ed25519 signature of the SHA-512 hash of
-every nonce and ciphertext (including those in the header) in the order they
-appear in the message. Any attempt to add or remove packets (or recipients) will
-fail this verification.
+every byte in the message which precedes the signature's frame.  Any attempt to
+modify the message will fail this verification.
 
 ## TODO
 

@@ -132,11 +132,10 @@ func Encrypt(
 	w io.Writer,
 	packetSize int,
 ) error {
-	sigHash := sha512.New()
-
 	fw := framedWriter{
 		w:       w,
 		sizeBuf: make([]byte, 4),
+		h:       sha512.New(),
 	}
 
 	// decrypt the private key
@@ -153,7 +152,7 @@ func Encrypt(
 	aead, _ := chacha20poly1305.NewChaCha20Poly1305(messageKey)
 
 	// encrypt the message key for all recipients
-	header, err := encryptMessageKey(decryptingKey, messageKey, recipients, sigHash)
+	header, err := encryptMessageKey(decryptingKey, messageKey, recipients)
 	if err != nil {
 		return err
 	}
@@ -180,18 +179,11 @@ func Encrypt(
 			return err
 		}
 
-		// encrypt the plaintext
-		ciphertext := aead.Seal(nil, nonce, plaintext[:n], nil)
-
-		// hash both
-		_, _ = sigHash.Write(nonce)
-		_, _ = sigHash.Write(ciphertext)
-
-		// write the packet
+		// write the encrypted packet
 		if err := fw.writeMessage(&pb.Packet{
 			Data: &pb.EncryptedData{
 				Nonce:      nonce,
-				Ciphertext: ciphertext,
+				Ciphertext: aead.Seal(nil, nonce, plaintext[:n], fw.digest()),
 			},
 			Last: proto.Bool(done),
 		}); err != nil {
@@ -200,7 +192,7 @@ func Encrypt(
 	}
 
 	// write the signature
-	sig := ed25519Sign(signingKey, sigHash.Sum(nil))
+	sig := ed25519Sign(signingKey, fw.digest())
 	return fw.writeMessage(&pb.Signature{
 		Signature: sig,
 	})
@@ -215,11 +207,10 @@ func Decrypt(
 	r io.Reader,
 	w io.Writer,
 ) error {
-	sigHash := sha512.New()
-
 	fr := framedReader{
 		r:       r,
 		sizeBuf: make([]byte, 4),
+		h:       sha512.New(),
 	}
 
 	// decode the public key
@@ -250,16 +241,13 @@ func Decrypt(
 		return err
 	}
 
-	// hash all the nonces and keys in the header
-	for _, ed := range header.Keys {
-		_, _ = sigHash.Write(ed.Nonce)
-		_, _ = sigHash.Write(ed.Ciphertext)
-	}
-
 	var packet pb.Packet
 
 	// iterate through the packets, decrypting them
 	for {
+		// calculate the hash so far
+		digest := fr.digest()
+
 		// decode a packet
 		if err := fr.readMessage(&packet); err == io.EOF {
 			return nil
@@ -267,13 +255,9 @@ func Decrypt(
 			return err
 		}
 
-		// hash the nonce and ciphertext
-		ed := packet.Data
-		_, _ = sigHash.Write(ed.Nonce)
-		_, _ = sigHash.Write(ed.Ciphertext)
-
 		// decrypt the data
-		plaintext, err := aead.Open(nil, ed.Nonce, ed.Ciphertext, nil)
+		ed := packet.Data
+		plaintext, err := aead.Open(nil, ed.Nonce, ed.Ciphertext, digest)
 		if err != nil {
 			return ErrBadSignature
 		}
@@ -289,6 +273,9 @@ func Decrypt(
 		}
 	}
 
+	// calculate the digest so far
+	digest := fr.digest()
+
 	// read the signature
 	var sig pb.Signature
 	if err := fr.readMessage(&sig); err != nil {
@@ -296,7 +283,7 @@ func Decrypt(
 	}
 
 	// verify the signature
-	if !ed25519Verify(pubKey.VerifyingKey, sigHash.Sum(nil), sig.Signature) {
+	if !ed25519Verify(pubKey.VerifyingKey, digest, sig.Signature) {
 		return ErrBadSignature
 	}
 
@@ -408,7 +395,6 @@ func encryptMessageKey(
 	decryptingKey,
 	messageKey []byte,
 	recipients []PublicKey,
-	sigHash hash.Hash,
 ) (*pb.Header, error) {
 	recipients, err := secureShuffle(recipients, messageKey)
 	if err != nil {
@@ -431,13 +417,9 @@ func encryptMessageKey(
 		}
 
 		// and encrypt the message key
-		ciphertext := aead.Seal(nil, nonce, messageKey, nil)
-		_, _ = sigHash.Write(nonce)
-		_, _ = sigHash.Write(ciphertext)
-
 		keys[i] = &pb.EncryptedData{
 			Nonce:      nonce,
-			Ciphertext: ciphertext,
+			Ciphertext: aead.Seal(nil, nonce, messageKey, nil),
 		}
 	}
 
@@ -532,6 +514,12 @@ func secureShuffle(keys []PublicKey, messageKey []byte) ([]PublicKey, error) {
 type framedReader struct {
 	r            io.Reader
 	sizeBuf, buf []byte
+	h            hash.Hash
+}
+
+// digest returns the SHA-512 digest of all the data written.
+func (fr framedReader) digest() []byte {
+	return fr.h.Sum(nil)
 }
 
 // readMessage reads the next message in the reader into the given protobuf.
@@ -549,11 +537,15 @@ func (fr framedReader) readMessage(msg proto.Message) error {
 		fr.buf = make([]byte, size)
 	}
 
-	if _, err := io.ReadFull(fr.r, fr.buf); err != nil {
+	n, err := io.ReadFull(fr.r, fr.buf)
+	if err != nil {
 		return err
 	}
 
-	return proto.Unmarshal(fr.buf, msg)
+	_, _ = fr.h.Write(fr.sizeBuf)
+	_, _ = fr.h.Write(fr.buf[:n])
+
+	return proto.Unmarshal(fr.buf[:n], msg)
 }
 
 // framedWriter writes protobuf messages, framed with a 32-bit little-endian
@@ -561,6 +553,12 @@ func (fr framedReader) readMessage(msg proto.Message) error {
 type framedWriter struct {
 	w       io.Writer
 	sizeBuf []byte
+	h       hash.Hash
+}
+
+// digest returns the SHA-512 digest of all the data written.
+func (fw framedWriter) digest() []byte {
+	return fw.h.Sum(nil)
 }
 
 // writeMessage writes the given protobuf message into the writer.
@@ -575,6 +573,9 @@ func (fw framedWriter) writeMessage(msg proto.Message) error {
 	if _, err := fw.w.Write(fw.sizeBuf); err != nil {
 		return err
 	}
+
+	_, _ = fw.h.Write(fw.sizeBuf)
+	_, _ = fw.h.Write(buf)
 
 	_, err = fw.w.Write(buf)
 	return err
