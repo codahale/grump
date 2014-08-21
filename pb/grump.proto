@@ -4,9 +4,9 @@ package pb;
 // encrypted copies of the message key.
 message Header {
   // For each intended recipient of the message, a copy of the message key is
-  // added here, encrypted with the SHA-256 hash of the Curve25519 ECDH shared
-  // secret produced with the author's private key and the recipient's public
-  // key.
+  // added here, encrypted with the HKDF-SHA-512 output of the Curve25519 ECDH
+  // shared secret produced with the author's private key and the recipient's
+  // public key.
   //
   // The recipients of a message are not identified via metadata. To decrypt a
   // session key, the recipients must iterate through the keys and try

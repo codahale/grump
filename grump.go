@@ -2,7 +2,6 @@ package grump
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/binary"
 	"errors"
@@ -11,6 +10,7 @@ import (
 	"math/big"
 
 	"code.google.com/p/go.crypto/curve25519"
+	"code.google.com/p/go.crypto/hkdf"
 	"code.google.com/p/go.crypto/scrypt"
 	"code.google.com/p/goprotobuf/proto"
 	"github.com/agl/ed25519"
@@ -408,8 +408,8 @@ func decryptMessageKey(
 	return nil, ErrNotDecryptable
 }
 
-// sharedSecret returns the SHA-256 hash of the Curve25519 ECDH shared secret
-// for the two keys.
+// sharedSecret returns a 256-bit key from the HKDF-SHA-512 output of the
+// Curve25519 ECDH shared secret for the two keys.
 func sharedSecret(decryptingKey []byte, encryptingKey []byte) []byte {
 	// perform Curve25519 ECDH
 	var privKey, pubKey, sharedKey [32]byte
@@ -417,10 +417,10 @@ func sharedSecret(decryptingKey []byte, encryptingKey []byte) []byte {
 	copy(pubKey[:], encryptingKey)
 	curve25519.ScalarMult(&sharedKey, &privKey, &pubKey)
 
-	// run that through SHA-256
-	h := sha256.New()
-	_, _ = h.Write(sharedKey[:])
-	return h.Sum(nil)
+	key := make([]byte, chacha20poly1305.KeySize)
+	kdf := hkdf.New(sha512.New, sharedKey[:], nil, nil)
+	_, _ = kdf.Read(key)
+	return key
 }
 
 // genCurve25519Keys generates a Curve25519 key pair.
