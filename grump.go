@@ -123,7 +123,7 @@ func GenerateKeyPair(
 	return publicKey, privateKey, nil
 }
 
-// Encrypt first unlocks the given private key with the given passphrase, then
+// Encrypt first decrypts the given private key with the given passphrase, then
 // uses it to encrypt all of the data in the given reader so that only the given
 // recipients can decrypt it.
 func Encrypt(
@@ -208,7 +208,7 @@ func Encrypt(
 	})
 }
 
-// Decrypt first unlocks the given private key with the given passphrase and
+// Decrypt first decrypts the given private key with the given passphrase and
 // then decrypts the data, verifying that it came from the given sender.
 func Decrypt(
 	privateKey PrivateKey,
