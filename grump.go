@@ -305,6 +305,52 @@ func Decrypt(
 	return nil
 }
 
+// Sign first decrypts the private key with the given passphrase, then uses it
+// to create a Ed25519 signature of the given data.
+func Sign(privKey PrivateKey, passphrase string, r io.Reader, w io.Writer) error {
+	// decrypt the private key
+	_, signingKey, err := decryptPrivateKey(passphrase, privKey)
+	if err != nil {
+		return err
+	}
+
+	h := sha512.New()
+	io.Copy(h, r)
+	sig := ed25519Sign(signingKey, h.Sum(nil))
+
+	buf, err := proto.Marshal(&pb.Signature{
+		Signature: sig,
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(buf)
+	return err
+}
+
+// Verify returns an error if the given signature for the given data was not
+// created by the owner of the given public key.
+func Verify(publicKey PublicKey, r io.Reader, signature []byte) error {
+	// decode the public key
+	var pubKey pb.PublicKey
+	if err := proto.Unmarshal(publicKey, &pubKey); err != nil {
+		return err
+	}
+
+	var sig pb.Signature
+	if err := proto.Unmarshal(signature, &sig); err != nil {
+		return err
+	}
+
+	h := sha512.New()
+	io.Copy(h, r)
+	if !ed25519Verify(pubKey.VerifyingKey, h.Sum(nil), sig.Signature) {
+		return ErrBadSignature
+	}
+	return nil
+}
+
 // decryptPrivateKey decodes and decrypts the given private key, returning the
 // decrypting key and the signing key.
 func decryptPrivateKey(passphrase string, pubKey []byte) ([]byte, []byte, error) {

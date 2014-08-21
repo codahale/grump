@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestEndToEnd(t *testing.T) {
+func TestEncryptAndDecrypt(t *testing.T) {
 	alicePub, alicePriv, err := GenerateKeyPair("alice", 256, 8, 1)
 	if err != nil {
 		t.Fatal(err)
@@ -157,7 +157,79 @@ func TestDecryptBadPassphrase(t *testing.T) {
 	); err != ErrBadPassphrase {
 		t.Fatalf("Expected 'bad passphrase', but got %v", err)
 	}
+}
 
+func TestSignAndVerify(t *testing.T) {
+	pub, priv, err := GenerateKeyPair("woo", 256, 8, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	message := make([]byte, 1024*1024)
+	signature := bytes.NewBuffer(nil)
+	if err := Sign(
+		priv, "woo",
+		bytes.NewReader(message),
+		signature,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Verify(
+		pub,
+		bytes.NewReader(message),
+		signature.Bytes(),
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	// shouldn't verify a bad message
+	badMessage := make([]byte, len(message))
+	badMessage[100] ^= 90
+	if err := Verify(
+		pub,
+		bytes.NewReader(badMessage),
+		signature.Bytes(),
+	); err == nil {
+		t.Fatalf("Expected ErrBadSignature, but no error was returned")
+	}
+
+	// shouldn't verify a bad signature
+	badSignature := signature.Bytes()
+	badSignature[1] ^= 90
+	if err := Verify(
+		pub,
+		bytes.NewReader(message),
+		badSignature,
+	); err == nil {
+		t.Fatalf("Expected ErrBadSignature, but no error was returned")
+	}
+}
+
+func TestSignAndVerifyBadMessage(t *testing.T) {
+	pub, priv, err := GenerateKeyPair("woo", 256, 8, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	message := make([]byte, 1024*1024)
+	signature := bytes.NewBuffer(nil)
+	if err := Sign(
+		priv, "woo",
+		bytes.NewReader(message),
+		signature,
+	); err != nil {
+		t.Fatal(err)
+	}
+	message[100] ^= 90
+
+	if err := Verify(
+		pub,
+		bytes.NewReader(message),
+		signature.Bytes(),
+	); err == nil {
+		t.Fatalf("Expected ErrBadSignature, but no error was returned")
+	}
 }
 
 func BenchmarkGenerateKeyPair(b *testing.B) {
@@ -219,6 +291,54 @@ func BenchmarkDecrypt(b *testing.B) {
 			pub,
 			bytes.NewReader(message),
 			ioutil.Discard,
+		)
+	}
+}
+
+func BenchmarkSign(b *testing.B) {
+	_, priv, err := GenerateKeyPair("woo", 2, 8, 1)
+	if err != nil {
+		b.Fatal(err)
+	}
+	message := make([]byte, 1024*1024)
+
+	b.SetBytes(1024 * 1024)
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		Sign(
+			priv,
+			"woo",
+			bytes.NewReader(message),
+			ioutil.Discard,
+		)
+	}
+}
+
+func BenchmarkVerify(b *testing.B) {
+	pub, priv, err := GenerateKeyPair("woo", 2, 8, 1)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	message := make([]byte, 1024*1024)
+	signature := bytes.NewBuffer(nil)
+	if err := Sign(
+		priv, "woo",
+		bytes.NewReader(message),
+		signature,
+	); err != nil {
+		b.Fatal(err)
+	}
+
+	b.SetBytes(1024 * 1024)
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		Verify(
+			pub,
+			bytes.NewReader(message),
+			signature.Bytes(),
 		)
 	}
 }
