@@ -13,9 +13,9 @@ import (
 
 func main() {
 	var (
-		privKeyName = flag.String("priv", "", "private key name")
-		inFile      = flag.String("in", "", "input file name")
-		outFile     = flag.String("out", "", "output file name")
+		privKeyFile = flag.String("priv", "", "private key file")
+		inFile      = flag.String("in", "", "input file")
+		outFile     = flag.String("out", "", "output file")
 
 		pubKeys fileList
 	)
@@ -26,7 +26,7 @@ func main() {
 	fmt.Printf("Passphrase: ")
 	fmt.Scanln(&passphrase)
 
-	privKey, err := ioutil.ReadFile(*privKeyName)
+	privKey, err := ioutil.ReadFile(*privKeyFile)
 	if err != nil {
 		die(err)
 	}

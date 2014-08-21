@@ -12,10 +12,10 @@ import (
 
 func main() {
 	var (
-		pubKeyName  = flag.String("pub", "", "public key name")
-		privKeyName = flag.String("priv", "", "private key name")
-		inFile      = flag.String("in", "", "input file name")
-		outFile     = flag.String("out", "", "output file name")
+		pubKeyFile  = flag.String("pub", "", "public key file")
+		privKeyFile = flag.String("priv", "", "private key file")
+		inFile      = flag.String("in", "", "input file")
+		outFile     = flag.String("out", "", "output file")
 	)
 	flag.Parse()
 
@@ -23,12 +23,12 @@ func main() {
 	fmt.Printf("Passphrase: ")
 	fmt.Scanln(&passphrase)
 
-	privKey, err := ioutil.ReadFile(*privKeyName)
+	privKey, err := ioutil.ReadFile(*privKeyFile)
 	if err != nil {
 		die(err)
 	}
 
-	sender, err := ioutil.ReadFile(*pubKeyName)
+	sender, err := ioutil.ReadFile(*pubKeyFile)
 	if err != nil {
 		die(err)
 	}
