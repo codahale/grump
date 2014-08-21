@@ -314,17 +314,21 @@ func Sign(privKey PrivateKey, passphrase string, r io.Reader, w io.Writer) error
 		return err
 	}
 
+	// hash the data
 	h := sha512.New()
-	io.Copy(h, r)
-	sig := ed25519Sign(signingKey, h.Sum(nil))
+	if _, err := io.Copy(h, r); err != nil {
+		return err
+	}
 
+	// sign the data and encode the signature
 	buf, err := proto.Marshal(&pb.Signature{
-		Signature: sig,
+		Signature: ed25519Sign(signingKey, h.Sum(nil)),
 	})
 	if err != nil {
 		return err
 	}
 
+	// write the signature
 	_, err = w.Write(buf)
 	return err
 }
@@ -338,13 +342,19 @@ func Verify(publicKey PublicKey, r io.Reader, signature []byte) error {
 		return err
 	}
 
+	// decode the signature
 	var sig pb.Signature
 	if err := proto.Unmarshal(signature, &sig); err != nil {
 		return err
 	}
 
+	// hash the data
 	h := sha512.New()
-	io.Copy(h, r)
+	if _, err := io.Copy(h, r); err != nil {
+		return err
+	}
+
+	// verify the signature
 	if !ed25519Verify(pubKey.VerifyingKey, h.Sum(nil), sig.Signature) {
 		return ErrBadSignature
 	}
