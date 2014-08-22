@@ -15,12 +15,14 @@ func main() {
 		privKeyFile = flag.String("priv", "", "private key name")
 		inFile      = flag.String("in", "", "input file name")
 		sigFile     = flag.String("sig", "", "signature file name")
+		passPrompt  = flag.Bool("prompt", true, "prompt for passphrase")
 	)
 	flag.Parse()
 
-	var passphrase string
-	fmt.Printf("Passphrase: ")
-	fmt.Scanln(&passphrase)
+	passphrase, err := grump.ReadPassphrase(*passPrompt)
+	if err != nil {
+		die(err)
+	}
 
 	privKey, err := ioutil.ReadFile(*privKeyFile)
 	if err != nil {

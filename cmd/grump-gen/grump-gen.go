@@ -18,12 +18,14 @@ func main() {
 
 		pubKeyName  = flag.String("pub", "out.pub", "public key name")
 		privKeyName = flag.String("priv", "out.priv", "private key name")
+		passPrompt  = flag.Bool("prompt", true, "prompt for passphrase")
 	)
 	flag.Parse()
 
-	var passphrase string
-	fmt.Printf("Passphrase: ")
-	fmt.Scanln(&passphrase)
+	passphrase, err := grump.ReadPassphrase(*passPrompt)
+	if err != nil {
+		die(err)
+	}
 
 	pubKey, privKey, err := grump.GenerateKeyPair(passphrase, *n, *r, *p)
 	if err != nil {

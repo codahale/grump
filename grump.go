@@ -7,13 +7,16 @@ import (
 	"errors"
 	"hash"
 	"io"
+	"io/ioutil"
 	"math/big"
+	"os"
 
 	"code.google.com/p/go.crypto/curve25519"
 	"code.google.com/p/go.crypto/hkdf"
 	"code.google.com/p/go.crypto/scrypt"
 	"code.google.com/p/goprotobuf/proto"
 	"github.com/agl/ed25519"
+	"github.com/andrew-d/go-termutil"
 	"github.com/codahale/chacha20poly1305"
 	"github.com/codahale/grump/pb"
 )
@@ -326,6 +329,15 @@ func Verify(publicKey, signature []byte, r io.Reader) error {
 		return ErrBadSignature
 	}
 	return nil
+}
+
+// ReadPassphrase either prompts interactively for the passphrase or reads it
+// from stdin.
+func ReadPassphrase(prompt bool) ([]byte, error) {
+	if prompt {
+		return termutil.GetPass("Passphrase: ", os.Stderr.Fd(), os.Stdin.Fd())
+	}
+	return ioutil.ReadAll(os.Stdin)
 }
 
 // decryptPrivateKey decodes and decrypts the given private key, returning the

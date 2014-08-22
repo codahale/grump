@@ -16,15 +16,17 @@ func main() {
 		privKeyFile = flag.String("priv", "", "private key file")
 		inFile      = flag.String("in", "", "input file")
 		outFile     = flag.String("out", "", "output file")
+		passPrompt  = flag.Bool("prompt", true, "prompt for passphrase")
 
 		pubKeys fileList
 	)
 	flag.Var(&pubKeys, "pub", "public key (use '-' for a fake recipient)")
 	flag.Parse()
 
-	var passphrase string
-	fmt.Printf("Passphrase: ")
-	fmt.Scanln(&passphrase)
+	passphrase, err := grump.ReadPassphrase(*passPrompt)
+	if err != nil {
+		die(err)
+	}
 
 	privKey, err := ioutil.ReadFile(*privKeyFile)
 	if err != nil {

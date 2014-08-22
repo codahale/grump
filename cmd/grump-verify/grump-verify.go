@@ -34,7 +34,7 @@ func main() {
 	}
 	defer in.Close()
 
-	if err := grump.Verify(pubKey, in, signature); err != nil {
+	if err := grump.Verify(pubKey, signature, in); err != nil {
 		die(err)
 	}
 }

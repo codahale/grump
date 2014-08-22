@@ -40,6 +40,10 @@
 			"Rev": "c4161f4c7483313562781c61b9a20aba73daf9de"
 		},
 		{
+			"ImportPath": "github.com/andrew-d/go-termutil",
+			"Rev": "91702f30b7f6d63f574b486457bae6acb1534dce"
+		},
+		{
 			"ImportPath": "github.com/codahale/chacha20",
 			"Rev": "f833b9b1dc924f734c9d8e0811c495ed00179d2e"
 		},

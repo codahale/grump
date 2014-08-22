@@ -195,6 +195,8 @@ using a key derived from your passphrase via scrypt.
 A Grump public key is the combination of a Curve25519 encryption key and a
 Ed25519 verifying key.
 
+No, there isn't any way to keep track of whose keys are whose.
+
 ### Messages
 
 Grump messages are a sequence of framed protobufs (little-endian, 32-bit frame
@@ -217,7 +219,8 @@ The final element of a message is an Ed25519 signature of the SHA-512 hash of
 every byte in the message which precedes the signature's frame.  Any attempt to
 modify the message will fail this verification.
 
-## TODO
+### TODO
 
-* Yes, I'm echoing your passphrase back to you. I said don't use this.
-* No, there isn't any way to keep track of whose keys are whose.
+* Figure out how to support key sets w/ arbitrary data<->key mappings (e.g.,
+  "Here's a directory of public keys, here's a directory of private keys; you
+  tell me who this was sent by.")
