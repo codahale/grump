@@ -7,22 +7,22 @@ import (
 )
 
 func TestEncryptAndDecrypt(t *testing.T) {
-	alicePub, alicePriv, err := GenerateKeyPair("alice", 256, 8, 1)
+	alicePub, alicePriv, err := GenerateKeyPair([]byte("alice"), 256, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	bobPub, bobPriv, err := GenerateKeyPair("bob", 256, 8, 1)
+	bobPub, bobPriv, err := GenerateKeyPair([]byte("bob"), 256, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	carolPub, carolPriv, err := GenerateKeyPair("carol", 256, 8, 1)
+	carolPub, carolPriv, err := GenerateKeyPair([]byte("carol"), 256, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, evePriv, err := GenerateKeyPair("eve", 256, 8, 1)
+	_, evePriv, err := GenerateKeyPair([]byte("eve"), 256, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,8 +33,8 @@ func TestEncryptAndDecrypt(t *testing.T) {
 	encryptedMessage := bytes.NewBuffer(nil)
 	if err := Encrypt(
 		alicePriv,
-		"alice",
-		[]PublicKey{bobPub, carolPub},
+		[]byte("alice"),
+		[][]byte{bobPub, carolPub},
 		bytes.NewReader(message),
 		encryptedMessage,
 		16,
@@ -46,7 +46,7 @@ func TestEncryptAndDecrypt(t *testing.T) {
 	bobMessage := bytes.NewBuffer(nil)
 	if err := Decrypt(
 		bobPriv,
-		"bob",
+		[]byte("bob"),
 		alicePub,
 		bytes.NewReader(encryptedMessage.Bytes()),
 		bobMessage,
@@ -62,7 +62,7 @@ func TestEncryptAndDecrypt(t *testing.T) {
 	carolMessage := bytes.NewBuffer(nil)
 	if err := Decrypt(
 		carolPriv,
-		"carol",
+		[]byte("carol"),
 		alicePub,
 		bytes.NewReader(encryptedMessage.Bytes()),
 		carolMessage,
@@ -78,7 +78,7 @@ func TestEncryptAndDecrypt(t *testing.T) {
 	eveMessage := bytes.NewBuffer(nil)
 	if err := Decrypt(
 		evePriv,
-		"eve",
+		[]byte("eve"),
 		alicePub,
 		bytes.NewReader(encryptedMessage.Bytes()),
 		eveMessage,
@@ -95,7 +95,7 @@ func TestEncryptAndDecrypt(t *testing.T) {
 	malloryMessage := bytes.NewBuffer(nil)
 	if err := Decrypt(
 		carolPriv,
-		"carol",
+		[]byte("carol"),
 		alicePub,
 		bytes.NewReader(encryptedMessage.Bytes()),
 		malloryMessage,
@@ -108,7 +108,7 @@ func TestEncryptAndDecrypt(t *testing.T) {
 }
 
 func TestGenerateKeyPairBadParams(t *testing.T) {
-	pub, priv, err := GenerateKeyPair("woo", -100, 1, 1)
+	pub, priv, err := GenerateKeyPair([]byte("woo"), -100, 1, 1)
 
 	if pub != nil {
 		t.Errorf("Expected no public key, but got %v", pub)
@@ -124,15 +124,15 @@ func TestGenerateKeyPairBadParams(t *testing.T) {
 }
 
 func TestEncryptBadPassphrase(t *testing.T) {
-	pub, priv, err := GenerateKeyPair("woo", 256, 8, 1)
+	pub, priv, err := GenerateKeyPair([]byte("woo"), 256, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if err := Encrypt(
 		priv,
-		"yay",
-		[]PublicKey{pub},
+		[]byte("yay"),
+		[][]byte{pub},
 		bytes.NewReader(nil),
 		bytes.NewBuffer(nil),
 		16,
@@ -143,14 +143,14 @@ func TestEncryptBadPassphrase(t *testing.T) {
 }
 
 func TestDecryptBadPassphrase(t *testing.T) {
-	pub, priv, err := GenerateKeyPair("woo", 256, 8, 1)
+	pub, priv, err := GenerateKeyPair([]byte("woo"), 256, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if err := Decrypt(
 		priv,
-		"yay",
+		[]byte("yay"),
 		pub,
 		bytes.NewReader(nil),
 		bytes.NewBuffer(nil),
@@ -160,7 +160,7 @@ func TestDecryptBadPassphrase(t *testing.T) {
 }
 
 func TestSignAndVerify(t *testing.T) {
-	pub, priv, err := GenerateKeyPair("woo", 256, 8, 1)
+	pub, priv, err := GenerateKeyPair([]byte("woo"), 256, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,8 @@ func TestSignAndVerify(t *testing.T) {
 	message := make([]byte, 1024*1024)
 	signature := bytes.NewBuffer(nil)
 	if err := Sign(
-		priv, "woo",
+		priv,
+		[]byte("woo"),
 		bytes.NewReader(message),
 		signature,
 	); err != nil {
@@ -177,8 +178,8 @@ func TestSignAndVerify(t *testing.T) {
 
 	if err := Verify(
 		pub,
-		bytes.NewReader(message),
 		signature.Bytes(),
+		bytes.NewReader(message),
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -188,8 +189,8 @@ func TestSignAndVerify(t *testing.T) {
 	badMessage[100] ^= 90
 	if err := Verify(
 		pub,
-		bytes.NewReader(badMessage),
 		signature.Bytes(),
+		bytes.NewReader(badMessage),
 	); err == nil {
 		t.Fatalf("Expected ErrBadSignature, but no error was returned")
 	}
@@ -199,15 +200,15 @@ func TestSignAndVerify(t *testing.T) {
 	badSignature[1] ^= 90
 	if err := Verify(
 		pub,
-		bytes.NewReader(message),
 		badSignature,
+		bytes.NewReader(message),
 	); err == nil {
 		t.Fatalf("Expected ErrBadSignature, but no error was returned")
 	}
 }
 
 func TestSignAndVerifyBadMessage(t *testing.T) {
-	pub, priv, err := GenerateKeyPair("woo", 256, 8, 1)
+	pub, priv, err := GenerateKeyPair([]byte("woo"), 256, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +216,8 @@ func TestSignAndVerifyBadMessage(t *testing.T) {
 	message := make([]byte, 1024*1024)
 	signature := bytes.NewBuffer(nil)
 	if err := Sign(
-		priv, "woo",
+		priv,
+		[]byte("woo"),
 		bytes.NewReader(message),
 		signature,
 	); err != nil {
@@ -225,8 +227,8 @@ func TestSignAndVerifyBadMessage(t *testing.T) {
 
 	if err := Verify(
 		pub,
-		bytes.NewReader(message),
 		signature.Bytes(),
+		bytes.NewReader(message),
 	); err == nil {
 		t.Fatalf("Expected ErrBadSignature, but no error was returned")
 	}
@@ -236,16 +238,16 @@ func BenchmarkGenerateKeyPair(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		GenerateKeyPair("woo", 1<<20, 8, 1)
+		GenerateKeyPair([]byte("woo"), 1<<20, 8, 1)
 	}
 }
 
 func BenchmarkEncrypt(b *testing.B) {
-	pub, priv, err := GenerateKeyPair("woo", 2, 8, 1)
+	pub, priv, err := GenerateKeyPair([]byte("woo"), 2, 8, 1)
 	if err != nil {
 		b.Fatal(err)
 	}
-	recipients := []PublicKey{pub}
+	recipients := [][]byte{pub}
 	message := make([]byte, 1024*1024)
 
 	b.SetBytes(1024 * 1024)
@@ -254,7 +256,7 @@ func BenchmarkEncrypt(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Encrypt(
 			priv,
-			"woo",
+			[]byte("woo"),
 			recipients,
 			bytes.NewReader(message),
 			ioutil.Discard,
@@ -264,7 +266,7 @@ func BenchmarkEncrypt(b *testing.B) {
 }
 
 func BenchmarkDecrypt(b *testing.B) {
-	pub, priv, err := GenerateKeyPair("woo", 2, 8, 1)
+	pub, priv, err := GenerateKeyPair([]byte("woo"), 2, 8, 1)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -272,8 +274,9 @@ func BenchmarkDecrypt(b *testing.B) {
 	message := make([]byte, 1024*1024)
 	encryptedMessage := bytes.NewBuffer(nil)
 	if err := Encrypt(
-		priv, "woo",
-		[]PublicKey{pub},
+		priv,
+		[]byte("woo"),
+		[][]byte{pub},
 		bytes.NewReader(message),
 		encryptedMessage,
 		1024*64,
@@ -287,7 +290,8 @@ func BenchmarkDecrypt(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		Decrypt(
-			priv, "woo",
+			priv,
+			[]byte("woo"),
 			pub,
 			bytes.NewReader(message),
 			ioutil.Discard,
@@ -296,7 +300,7 @@ func BenchmarkDecrypt(b *testing.B) {
 }
 
 func BenchmarkSign(b *testing.B) {
-	_, priv, err := GenerateKeyPair("woo", 2, 8, 1)
+	_, priv, err := GenerateKeyPair([]byte("woo"), 2, 8, 1)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -308,7 +312,7 @@ func BenchmarkSign(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Sign(
 			priv,
-			"woo",
+			[]byte("woo"),
 			bytes.NewReader(message),
 			ioutil.Discard,
 		)
@@ -316,7 +320,7 @@ func BenchmarkSign(b *testing.B) {
 }
 
 func BenchmarkVerify(b *testing.B) {
-	pub, priv, err := GenerateKeyPair("woo", 2, 8, 1)
+	pub, priv, err := GenerateKeyPair([]byte("woo"), 2, 8, 1)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -324,7 +328,8 @@ func BenchmarkVerify(b *testing.B) {
 	message := make([]byte, 1024*1024)
 	signature := bytes.NewBuffer(nil)
 	if err := Sign(
-		priv, "woo",
+		priv,
+		[]byte("woo"),
 		bytes.NewReader(message),
 		signature,
 	); err != nil {
@@ -337,8 +342,8 @@ func BenchmarkVerify(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Verify(
 			pub,
-			bytes.NewReader(message),
 			signature.Bytes(),
+			bytes.NewReader(message),
 		)
 	}
 }

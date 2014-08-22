@@ -31,7 +31,7 @@ func main() {
 		die(err)
 	}
 
-	var recipients []grump.PublicKey
+	var recipients [][]byte
 	for _, filename := range pubKeys {
 		if filename == "-" { // generate a fake recipient
 			recipient := make([]byte, 32)

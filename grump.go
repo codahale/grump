@@ -18,15 +18,6 @@ import (
 	"github.com/codahale/grump/pb"
 )
 
-// PublicKey is a Grump public key, which consists of a Curve25519 public key
-// for encryption and a Ed25519 public key for verification.
-type PublicKey []byte
-
-// PrivateKey is a Grump private key, which consists of a Curve25519 private key
-// for decryption and a Ed25519 private key for signing. Both are encrypted with
-// ChaCha20Poly1305 using a key derived from a passphrase using scrypt.
-type PrivateKey []byte
-
 var (
 	// ErrBadPassphrase is returned when the passphrase provided cannot decrypt
 	// the given private key.
@@ -50,10 +41,7 @@ const (
 
 // GenerateKeyPair creates a new Curve25519 key pair and encrypts the private
 // key with the given passphrase and scrypt parameters.
-func GenerateKeyPair(
-	passphrase string,
-	n, r, p int,
-) (PublicKey, PrivateKey, error) {
+func GenerateKeyPair(passphrase []byte, n, r, p int) ([]byte, []byte, error) {
 	// generate Curve25519 keys
 	encryptingKey, decryptingKey, err := genCurve25519Keys()
 	if err != nil {
@@ -71,7 +59,7 @@ func GenerateKeyPair(
 	if _, err := rand.Read(salt); err != nil {
 		return nil, nil, err
 	}
-	key, err := scrypt.Key([]byte(passphrase), salt, n, r, p, chacha20poly1305.KeySize)
+	key, err := scrypt.Key(passphrase, salt, n, r, p, chacha20poly1305.KeySize)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -125,9 +113,9 @@ func GenerateKeyPair(
 // uses it to encrypt all of the data in the given reader so that only the given
 // recipients can decrypt it.
 func Encrypt(
-	privateKey PrivateKey,
-	passphrase string,
-	recipients []PublicKey,
+	privateKey,
+	passphrase []byte,
+	recipients [][]byte,
 	r io.Reader,
 	w io.Writer,
 	packetSize int,
@@ -200,13 +188,7 @@ func Encrypt(
 
 // Decrypt first decrypts the given private key with the given passphrase and
 // then decrypts the data, verifying that it came from the given sender.
-func Decrypt(
-	privateKey PrivateKey,
-	passphrase string,
-	sender PublicKey,
-	r io.Reader,
-	w io.Writer,
-) error {
+func Decrypt(privateKey, passphrase, sender []byte, r io.Reader, w io.Writer) error {
 	fr := framedReader{
 		r:       r,
 		sizeBuf: make([]byte, 4),
@@ -292,7 +274,7 @@ func Decrypt(
 
 // Sign first decrypts the private key with the given passphrase, then uses it
 // to create a Ed25519 signature of the given data.
-func Sign(privKey PrivateKey, passphrase string, r io.Reader, w io.Writer) error {
+func Sign(privKey, passphrase []byte, r io.Reader, w io.Writer) error {
 	// decrypt the private key
 	_, signingKey, err := decryptPrivateKey(passphrase, privKey)
 	if err != nil {
@@ -320,7 +302,7 @@ func Sign(privKey PrivateKey, passphrase string, r io.Reader, w io.Writer) error
 
 // Verify returns an error if the given signature for the given data was not
 // created by the owner of the given public key.
-func Verify(publicKey PublicKey, r io.Reader, signature []byte) error {
+func Verify(publicKey, signature []byte, r io.Reader) error {
 	// decode the public key
 	var pubKey pb.PublicKey
 	if err := proto.Unmarshal(publicKey, &pubKey); err != nil {
@@ -348,7 +330,7 @@ func Verify(publicKey PublicKey, r io.Reader, signature []byte) error {
 
 // decryptPrivateKey decodes and decrypts the given private key, returning the
 // decrypting key and the signing key.
-func decryptPrivateKey(passphrase string, pubKey []byte) ([]byte, []byte, error) {
+func decryptPrivateKey(passphrase, pubKey []byte) ([]byte, []byte, error) {
 	// decode the protobuf
 	var pk pb.PrivateKey
 	if err := proto.Unmarshal(pubKey, &pk); err != nil {
@@ -357,7 +339,7 @@ func decryptPrivateKey(passphrase string, pubKey []byte) ([]byte, []byte, error)
 
 	// generate the key
 	key, err := scrypt.Key(
-		[]byte(passphrase),
+		passphrase,
 		pk.Salt,
 		int(pk.GetN()),
 		int(pk.GetR()),
@@ -389,14 +371,14 @@ func decryptPrivateKey(passphrase string, pubKey []byte) ([]byte, []byte, error)
 	return decryptingKey, signingKey, nil
 }
 
-// encryptMessageKey returns a header with encrypted copies of the message key for
-// each recipient.
+// encryptMessageKey returns a header with encrypted copies of the message key
+// for each recipient.
 func encryptMessageKey(
 	decryptingKey,
 	messageKey []byte,
-	recipients []PublicKey,
+	recipients [][]byte,
 ) (*pb.Header, error) {
-	recipients, err := secureShuffle(recipients, messageKey)
+	recipients, err := secureShuffle(recipients)
 	if err != nil {
 		return nil, err
 	}
@@ -493,8 +475,9 @@ func ed25519Verify(verifyingKey, hash, sig []byte) bool {
 	return ed25519.Verify(&pubKey, hash, &s)
 }
 
-func secureShuffle(keys []PublicKey, messageKey []byte) ([]PublicKey, error) {
-	k := make([]PublicKey, len(keys))
+// secureShuffle returns the given keys in random order.
+func secureShuffle(keys [][]byte) ([][]byte, error) {
+	k := make([][]byte, len(keys))
 	copy(k, keys)
 
 	for i := len(k) - 1; i > 1; i-- {
