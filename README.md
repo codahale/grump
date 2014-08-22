@@ -220,7 +220,4 @@ modify the message will fail this verification.
 ## TODO
 
 * Yes, I'm echoing your passphrase back to you. I said don't use this.
-* Curve25519 provides ~128 bits of security, but ChaCha20 provides 256
-  bits. It's a bit of a mismatch, but there isn't a Go impl of Curve41417 or
-  whatever, so I'm inclined to press forward and forget about it.
 * No, there isn't any way to keep track of whose keys are whose.
