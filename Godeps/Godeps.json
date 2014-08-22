@@ -7,23 +7,28 @@
 	"Deps": [
 		{
 			"ImportPath": "code.google.com/p/go.crypto/curve25519",
-			"Comment": "null-192",
-			"Rev": "2990fc550b9ff92bc33c848f92c87a305ae62934"
+			"Comment": "null-218",
+			"Rev": "f3cebac2bd11c2bf03c15bfa4c66688ad02a0a40"
+		},
+		{
+			"ImportPath": "code.google.com/p/go.crypto/hkdf",
+			"Comment": "null-218",
+			"Rev": "f3cebac2bd11c2bf03c15bfa4c66688ad02a0a40"
 		},
 		{
 			"ImportPath": "code.google.com/p/go.crypto/pbkdf2",
-			"Comment": "null-192",
-			"Rev": "2990fc550b9ff92bc33c848f92c87a305ae62934"
+			"Comment": "null-218",
+			"Rev": "f3cebac2bd11c2bf03c15bfa4c66688ad02a0a40"
 		},
 		{
 			"ImportPath": "code.google.com/p/go.crypto/poly1305",
-			"Comment": "null-192",
-			"Rev": "2990fc550b9ff92bc33c848f92c87a305ae62934"
+			"Comment": "null-218",
+			"Rev": "f3cebac2bd11c2bf03c15bfa4c66688ad02a0a40"
 		},
 		{
 			"ImportPath": "code.google.com/p/go.crypto/scrypt",
-			"Comment": "null-192",
-			"Rev": "2990fc550b9ff92bc33c848f92c87a305ae62934"
+			"Comment": "null-218",
+			"Rev": "f3cebac2bd11c2bf03c15bfa4c66688ad02a0a40"
 		},
 		{
 			"ImportPath": "code.google.com/p/goprotobuf/proto",
