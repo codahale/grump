@@ -1,16 +1,13 @@
-// grump-gen generates new Grump key pairs.
 package main
 
 import (
 	"flag"
-	"fmt"
 	"io/ioutil"
-	"os"
 
 	"github.com/codahale/grump"
 )
 
-func main() {
+func generate() {
 	var (
 		n = flag.Int("N", 1<<20, "scrypt iterations")
 		r = flag.Int("r", 8, "scrypt block size")
@@ -39,9 +36,4 @@ func main() {
 	if err := ioutil.WriteFile(*privKeyName, privKey, 0600); err != nil {
 		die(err)
 	}
-}
-
-func die(err error) {
-	fmt.Fprintln(os.Stderr, err)
-	os.Exit(-1)
 }

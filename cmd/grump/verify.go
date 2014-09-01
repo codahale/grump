@@ -1,16 +1,14 @@
-// grump-verify verifies signatures of files.
 package main
 
 import (
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"os"
 
 	"github.com/codahale/grump"
 )
 
-func main() {
+func verify() {
 	var (
 		pubKeyFile = flag.String("pub", "", "public key file")
 		inFile     = flag.String("in", "", "input file")
@@ -37,9 +35,4 @@ func main() {
 	if err := grump.Verify(pubKey, signature, in); err != nil {
 		die(err)
 	}
-}
-
-func die(err error) {
-	fmt.Fprintln(os.Stderr, err)
-	os.Exit(-1)
 }
