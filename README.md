@@ -42,18 +42,14 @@ something that is not listed here then that should count as a break of Grump.
 
 #### The World
 
-* The security assumptions and proofs of [Curve25519][1], [Ed25519][2],
-  [ChaCha20][3] and [Poly1305][4] (their [combination][5]), [SHA-512][6],
-  [HKDF][7], and [scrypt][8] are valid.
-
-[1]: http://cr.yp.to/ecdh.html
-[2]: http://ed25519.cr.yp.to/
-[3]: http://cr.yp.to/chacha.html
-[4]: http://cr.yp.to/mac.html
-[5]: http://eprint.iacr.org/2014/613.pdf
-[6]: http://csrc.nist.gov/publications/nistpubs/800-107-rev1/sp800-107-rev1.pdf
-[7]: https://tools.ietf.org/html/rfc5869
-[8]: http://www.tarsnap.com/scrypt/scrypt.pdf
+* The security assumptions and proofs of
+  [Curve25519](http://cr.yp.to/ecdh.html), [Ed25519](http://ed25519.cr.yp.to/),
+  [ChaCha20](http://cr.yp.to/chacha.html) and
+  [Poly1305](http://cr.yp.to/mac.html) (their
+  [combination](http://eprint.iacr.org/2014/613.pdf)),
+  [SHA-512](http://csrc.nist.gov/publications/nistpubs/800-107-rev1/sp800-107-rev1.pdf),
+  [HKDF](https://tools.ietf.org/html/rfc5869), and
+  [scrypt](http://www.tarsnap.com/scrypt/scrypt.pdf) are valid.
 
 ### Threats
 
@@ -163,17 +159,16 @@ will change and the packet will become invalid.
 
 ## Design
 
-The general design is largely informed by [ECIES][1], in that it combines a key
-exchange algorithm, a key derivation algorithm, and an IND-CCA2 AEAD scheme.
-
-[1]: http://en.wikipedia.org/wiki/Integrated_Encryption_Scheme
+The general design is largely informed by
+[ECIES](http://en.wikipedia.org/wiki/Integrated_Encryption_Scheme), in that it
+combines a key exchange algorithm, a key derivation algorithm, and an IND-CCA2
+AEAD scheme.
 
 ### Protocol Buffers
 
 X.509 is better than nothing, but it's horrible. Grump uses Protocol Buffers,
-which has [extremely broad language support][1].
-
-[1]: https://code.google.com/p/protobuf/wiki/ThirdPartyAddOns
+which has
+[extremely broad language support](https://code.google.com/p/protobuf/wiki/ThirdPartyAddOns).
 
 ### Curve25519 & Ed25519
 
@@ -181,9 +176,7 @@ which has [extremely broad language support][1].
 * It's constant-time.
 * It only requires entropy to generate keys.
 * It produces small keys.
-* It uses a [safe EC curve][1].
-
-[1]: http://safecurves.cr.yp.to
+* It uses a [safe elliptic curve](http://safecurves.cr.yp.to).
 
 ### ChaCha20Poly1305
 
