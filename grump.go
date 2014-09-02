@@ -115,14 +115,7 @@ func GenerateKeyPair(passphrase []byte, n, r, p int) ([]byte, []byte, error) {
 // Encrypt first decrypts the given private key with the given passphrase, then
 // uses it to encrypt all of the data in the given reader so that only the given
 // recipients can decrypt it.
-func Encrypt(
-	privateKey,
-	passphrase []byte,
-	recipients [][]byte,
-	r io.Reader,
-	w io.Writer,
-	packetSize int,
-) error {
+func Encrypt(privateKey, passphrase []byte, recipients [][]byte, r io.Reader, w io.Writer, packetSize int) error {
 	fw := framedWriter{
 		w:       w,
 		sizeBuf: make([]byte, 4),
@@ -385,11 +378,7 @@ func decryptPrivateKey(passphrase, pubKey []byte) ([]byte, []byte, error) {
 
 // encryptMessageKey returns a header with encrypted copies of the message key
 // for each recipient.
-func encryptMessageKey(
-	decryptingKey,
-	messageKey []byte,
-	recipients [][]byte,
-) (*pb.Header, error) {
+func encryptMessageKey(decryptingKey, messageKey []byte, recipients [][]byte) (*pb.Header, error) {
 	recipients, err := secureShuffle(recipients)
 	if err != nil {
 		return nil, err
@@ -422,11 +411,7 @@ func encryptMessageKey(
 
 // decryptMessageKey decrypts the message key by trying all the encrypted keys
 // in a header.
-func decryptMessageKey(
-	decryptingKey []byte,
-	encryptingKey []byte,
-	header *pb.Header,
-) ([]byte, error) {
+func decryptMessageKey(decryptingKey []byte, encryptingKey []byte, header *pb.Header) ([]byte, error) {
 	key := sharedSecret(decryptingKey, encryptingKey)
 	aead, _ := chacha20poly1305.NewChaCha20Poly1305(key)
 	for _, k := range header.Keys {
