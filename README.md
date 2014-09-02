@@ -163,13 +163,27 @@ will change and the packet will become invalid.
 
 ## Design
 
+The general design is largely informed by [ECIES][1], in that it combines a key
+exchange algorithm, a key derivation algorithm, and an IND-CCA2 AEAD scheme.
+
+[1]: http://en.wikipedia.org/wiki/Integrated_Encryption_Scheme
+
+### Protocol Buffers
+
+X.509 is better than nothing, but it's horrible. Grump uses Protocol Buffers,
+which has [extremely broad language support][1].
+
+[1]: https://code.google.com/p/protobuf/wiki/ThirdPartyAddOns
+
 ### Curve25519 & Ed25519
 
 * It's fast.
 * It's constant-time.
 * It only requires entropy to generate keys.
 * It produces small keys.
-* It uses a safe EC curve.
+* It uses a [safe EC curve][1].
+
+[1]: http://safecurves.cr.yp.to
 
 ### ChaCha20Poly1305
 
