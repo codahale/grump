@@ -123,6 +123,46 @@ func TestGenerateKeyPairBadParams(t *testing.T) {
 	}
 }
 
+func TestChangePassphrase(t *testing.T) {
+	pub, priv, err := GenerateKeyPair([]byte("woo"), 256, 8, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newPriv, err := ChangePassphrase(priv, []byte("woo"), []byte("yay"), 1024, 8, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	message := []byte("this is a lovely way to handle stuff")
+	encryptedMessage := bytes.NewBuffer(nil)
+	if err := Encrypt(
+		priv,
+		[]byte("woo"),
+		[][]byte{pub},
+		bytes.NewReader(message),
+		encryptedMessage,
+		16,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	newMessage := bytes.NewBuffer(nil)
+	if err := Decrypt(
+		newPriv,
+		[]byte("yay"),
+		pub,
+		bytes.NewReader(encryptedMessage.Bytes()),
+		newMessage,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(message, newMessage.Bytes()) {
+		t.Fatalf("Expected %v, but decrypted %v", message, newMessage.Bytes())
+	}
+}
+
 func TestEncryptBadPassphrase(t *testing.T) {
 	pub, priv, err := GenerateKeyPair([]byte("woo"), 256, 8, 1)
 	if err != nil {
@@ -139,7 +179,6 @@ func TestEncryptBadPassphrase(t *testing.T) {
 	); err != ErrBadPassphrase {
 		t.Fatalf("Expected 'bad passphrase', but got %v", err)
 	}
-
 }
 
 func TestDecryptBadPassphrase(t *testing.T) {

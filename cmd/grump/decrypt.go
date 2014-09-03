@@ -18,7 +18,7 @@ func decrypt() {
 	)
 	flag.Parse()
 
-	passphrase, err := grump.ReadPassphrase(*passPrompt)
+	passphrase, err := grump.ReadPassphrase(*passPrompt, "Passphrase: ")
 	if err != nil {
 		die(err)
 	}

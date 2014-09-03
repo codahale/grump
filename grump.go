@@ -57,46 +57,7 @@ func GenerateKeyPair(passphrase []byte, n, r, p int) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
-	// derive the symmetric key from the passphrase
-	salt := make([]byte, 32) // 256-bit salt
-	if _, err := rand.Read(salt); err != nil {
-		return nil, nil, err
-	}
-	key, err := scrypt.Key(passphrase, salt, n, r, p, chacha20poly1305.KeySize)
-	if err != nil {
-		return nil, nil, err
-	}
-	aead, _ := chacha20poly1305.NewChaCha20Poly1305(key)
-
-	// encrypt the decrypting key
-	decNonce := make([]byte, aead.NonceSize())
-	if _, err := rand.Read(decNonce); err != nil {
-		return nil, nil, err
-	}
-	encDecryptingKey := aead.Seal(nil, decNonce, decryptingKey, nil)
-
-	// encrypt the signing key
-	sigNonce := make([]byte, aead.NonceSize())
-	if _, err := rand.Read(sigNonce); err != nil {
-		return nil, nil, err
-	}
-	encSigningKey := aead.Seal(nil, sigNonce, signingKey, nil)
-
-	// serialize the private key
-	privateKey, err := proto.Marshal(&pb.PrivateKey{
-		N:    proto.Uint64(uint64(n)),
-		R:    proto.Uint64(uint64(r)),
-		P:    proto.Uint64(uint64(p)),
-		Salt: salt,
-		DecryptingKey: &pb.EncryptedData{
-			Nonce:      decNonce,
-			Ciphertext: encDecryptingKey,
-		},
-		SigningKey: &pb.EncryptedData{
-			Nonce:      sigNonce,
-			Ciphertext: encSigningKey,
-		},
-	})
+	privateKey, err := encryptPrivateKey(passphrase, decryptingKey, signingKey, n, r, p)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -110,6 +71,17 @@ func GenerateKeyPair(passphrase []byte, n, r, p int) ([]byte, []byte, error) {
 	}
 
 	return publicKey, privateKey, nil
+}
+
+// ChangePassphrase decrypts the given private key with the old passphrase and
+// re-encrypts it with the new passphrase.
+func ChangePassphrase(privateKey, oldPassphrase, newPassphrase []byte, n, r, p int) ([]byte, error) {
+	decryptingKey, signingKey, err := decryptPrivateKey(oldPassphrase, privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return encryptPrivateKey(newPassphrase, decryptingKey, signingKey, n, r, p)
 }
 
 // Encrypt first decrypts the given private key with the given passphrase, then
@@ -326,9 +298,9 @@ func Verify(publicKey, signature []byte, r io.Reader) error {
 
 // ReadPassphrase either prompts interactively for the passphrase or reads it
 // from stdin.
-func ReadPassphrase(prompt bool) ([]byte, error) {
-	if prompt {
-		return termutil.GetPass("Passphrase: ", os.Stderr.Fd(), os.Stdin.Fd())
+func ReadPassphrase(interactive bool, prompt string) ([]byte, error) {
+	if interactive {
+		return termutil.GetPass(prompt, os.Stderr.Fd(), os.Stdin.Fd())
 	}
 	return ioutil.ReadAll(os.Stdin)
 }
@@ -436,6 +408,50 @@ func sharedSecret(decryptingKey []byte, encryptingKey []byte) []byte {
 	kdf := hkdf.New(sha512.New, sharedKey[:], nil, nil)
 	_, _ = kdf.Read(key)
 	return key
+}
+
+// encryptPrivateKey creates an encrypted version of the given private key.
+func encryptPrivateKey(passphrase, decryptingKey, signingKey []byte, n, r, p int) ([]byte, error) {
+	// derive the symmetric key from the passphrase
+	salt := make([]byte, 32) // 256-bit salt
+	if _, err := rand.Read(salt); err != nil {
+		return nil, err
+	}
+	key, err := scrypt.Key(passphrase, salt, n, r, p, chacha20poly1305.KeySize)
+	if err != nil {
+		return nil, err
+	}
+	aead, _ := chacha20poly1305.NewChaCha20Poly1305(key)
+
+	// encrypt the decrypting key
+	decNonce := make([]byte, aead.NonceSize())
+	if _, err := rand.Read(decNonce); err != nil {
+		return nil, err
+	}
+	encDecryptingKey := aead.Seal(nil, decNonce, decryptingKey, nil)
+
+	// encrypt the signing key
+	sigNonce := make([]byte, aead.NonceSize())
+	if _, err := rand.Read(sigNonce); err != nil {
+		return nil, err
+	}
+	encSigningKey := aead.Seal(nil, sigNonce, signingKey, nil)
+
+	// serialize the private key
+	return proto.Marshal(&pb.PrivateKey{
+		N:    proto.Uint64(uint64(n)),
+		R:    proto.Uint64(uint64(r)),
+		P:    proto.Uint64(uint64(p)),
+		Salt: salt,
+		DecryptingKey: &pb.EncryptedData{
+			Nonce:      decNonce,
+			Ciphertext: encDecryptingKey,
+		},
+		SigningKey: &pb.EncryptedData{
+			Nonce:      sigNonce,
+			Ciphertext: encSigningKey,
+		},
+	})
 }
 
 // genCurve25519Keys generates a Curve25519 key pair.

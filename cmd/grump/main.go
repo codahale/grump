@@ -26,6 +26,8 @@ func main() {
 	switch mode {
 	case "generate":
 		generate()
+	case "change":
+		change()
 	case "encrypt":
 		encrypt()
 	case "decrypt":
@@ -57,6 +59,7 @@ func printUsage() {
 Available commands:
 
     generate  generate a new key pair
+    change    change the passphrase for a key
     encrypt   encrypt a file
     decrypt   decrypt a file
     sign      sign a file
