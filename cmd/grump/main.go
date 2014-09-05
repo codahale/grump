@@ -4,7 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
+
+	"github.com/docopt/docopt-go"
 )
 
 func init() {
@@ -16,57 +17,44 @@ func init() {
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		printUsage()
+	usage := `Grump is a grumpy cryptosystem for asynchronous messages.
+
+Usage:
+  grump generate [--batch] [-N=<exp>] [-r=<v>] [-p=<v>] --pub=<file> --priv=<file>
+  grump change [-N=<exp>] [-r=<v>] [-p=<v>] --priv=file
+  grump encrypt [--batch] --priv=<file> --pub=<file>... <input> <output>
+  grump decrypt [--batch] --priv=<file> --pub=<file> <input> <output>
+  grump sign [--batch] --priv=<file> <input> <signature>
+  grump verify [--quiet] --pub=<file> <input> <signature>
+
+Options:
+  -h --help     Show this screen.
+  -B --batch    Read the passphrase from stdin rather than prompting.
+  -N=<exp>      The scrypt iteration factor. [default: 20]
+  -r=<size>     The scrypt block size. [default: 8]
+  -p=<factor>   The scrypt paralleization factor. [default: 1]
+  --pub=<file>  A public key.
+  --priv=<file> A private key.
+  -q --quiet    Don't print anything to stdout.
+`
+	args, err := docopt.Parse(usage, nil, true, "", false)
+	if err != nil {
+		panic(err)
 	}
 
-	mode := os.Args[1]
-	os.Args = os.Args[1:]
-
-	switch mode {
-	case "generate":
-		generate()
-	case "change":
-		change()
-	case "encrypt":
-		encrypt()
-	case "decrypt":
-		decrypt()
-	case "sign":
-		sign()
-	case "verify":
-		verify()
-	default:
-		printUsage()
+	if args["generate"] == true {
+		generate(args)
+	} else if args["change"] == true {
+		change(args)
+	} else if args["encrypt"] == true {
+		encrypt(args)
+	} else if args["decrypt"] == true {
+		decrypt(args)
+	} else if args["sign"] == true {
+		sign(args)
+	} else if args["verify"] == true {
+		verify(args)
 	}
-}
-
-type fileList []string
-
-func (fl *fileList) Set(s string) error {
-	*fl = append(*fl, s)
-	return nil
-}
-
-func (fl *fileList) String() string {
-	return fmt.Sprint([]string(*fl))
-}
-
-func printUsage() {
-	fmt.Fprintln(
-		os.Stderr,
-		strings.TrimSpace(`
-Available commands:
-
-    generate  generate a new key pair
-    change    change the passphrase for a key
-    encrypt   encrypt a file
-    decrypt   decrypt a file
-    sign      sign a file
-    verify    verify a file
-`),
-	)
-	os.Exit(64)
 }
 
 func die(err error) {

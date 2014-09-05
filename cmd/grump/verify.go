@@ -1,38 +1,44 @@
 package main
 
 import (
-	"flag"
+	"fmt"
 	"io/ioutil"
 	"os"
 
 	"github.com/codahale/grump"
 )
 
-func verify() {
-	var (
-		pubKeyFile = flag.String("pub", "", "public key file")
-		inFile     = flag.String("in", "", "input file")
-		sigFile    = flag.String("sig", "", "signature file")
-	)
-	flag.Parse()
+func verify(args map[string]interface{}) {
+	pubKeyName := args["--pub"].([]string)[0]
+	inputName := args["<input>"].(string)
+	sigName := args["<signature>"].(string)
+	quiet := args["--quiet"] == true
 
-	pubKey, err := ioutil.ReadFile(*pubKeyFile)
+	pubKey, err := ioutil.ReadFile(pubKeyName)
 	if err != nil {
 		die(err)
 	}
 
-	signature, err := ioutil.ReadFile(*sigFile)
+	signature, err := ioutil.ReadFile(sigName)
 	if err != nil {
 		die(err)
 	}
 
-	in, err := os.Open(*inFile)
+	in, err := os.Open(inputName)
 	if err != nil {
 		die(err)
 	}
 	defer in.Close()
 
-	if err := grump.Verify(pubKey, signature, in); err != nil {
+	err = grump.Verify(pubKey, signature, in)
+	if err != nil {
+		if quiet {
+			os.Exit(-1)
+		}
 		die(err)
+	} else {
+		if !quiet {
+			fmt.Fprintln(os.Stderr, "good signature")
+		}
 	}
 }

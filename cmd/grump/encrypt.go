@@ -1,37 +1,30 @@
 package main
 
 import (
-	"flag"
 	"io/ioutil"
 	"os"
 
 	"github.com/codahale/grump"
 )
 
-func encrypt() {
-	var (
-		privKeyFile = flag.String("priv", "", "private key file")
-		inFile      = flag.String("in", "", "input file")
-		outFile     = flag.String("out", "", "output file")
-		passPrompt  = flag.Bool("prompt", true, "prompt for passphrase")
+func encrypt(args map[string]interface{}) {
+	privKeyName := args["--priv"].(string)
+	inputName := args["<input>"].(string)
+	outputName := args["<output>"].(string)
+	batch := args["--batch"] == true
 
-		pubKeys fileList
-	)
-	flag.Var(&pubKeys, "pub", "public key (use '-' for a fake recipient)")
-	flag.Parse()
-
-	passphrase, err := grump.ReadPassphrase(*passPrompt, "Passphrase: ")
+	passphrase, err := grump.ReadPassphrase(!batch, "Passphrase: ")
 	if err != nil {
 		die(err)
 	}
 
-	privKey, err := ioutil.ReadFile(*privKeyFile)
+	privKey, err := ioutil.ReadFile(privKeyName)
 	if err != nil {
 		die(err)
 	}
 
 	var recipients [][]byte
-	for _, filename := range pubKeys {
+	for _, filename := range args["--pub"].([]string) {
 		if filename == "-" {
 			// generate a fake recipient
 			recipients = append(recipients, nil)
@@ -44,13 +37,13 @@ func encrypt() {
 		}
 	}
 
-	in, err := os.Open(*inFile)
+	in, err := os.Open(inputName)
 	if err != nil {
 		die(err)
 	}
 	defer in.Close()
 
-	out, err := os.Create(*outFile)
+	out, err := os.Create(outputName)
 	if err != nil {
 		die(err)
 	}

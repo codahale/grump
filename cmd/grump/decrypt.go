@@ -1,51 +1,47 @@
 package main
 
 import (
-	"flag"
 	"io/ioutil"
 	"os"
 
 	"github.com/codahale/grump"
 )
 
-func decrypt() {
-	var (
-		pubKeyFile  = flag.String("pub", "", "public key file")
-		privKeyFile = flag.String("priv", "", "private key file")
-		inFile      = flag.String("in", "", "input file")
-		outFile     = flag.String("out", "", "output file")
-		passPrompt  = flag.Bool("prompt", true, "prompt for passphrase")
-	)
-	flag.Parse()
+func decrypt(args map[string]interface{}) {
+	pubKeyName := args["--pub"].([]string)[0]
+	privKeyName := args["--priv"].(string)
+	inputName := args["<input>"].(string)
+	outputName := args["<output>"].(string)
+	batch := args["--batch"] == true
 
-	passphrase, err := grump.ReadPassphrase(*passPrompt, "Passphrase: ")
+	passphrase, err := grump.ReadPassphrase(!batch, "Passphrase: ")
 	if err != nil {
 		die(err)
 	}
 
-	privKey, err := ioutil.ReadFile(*privKeyFile)
+	privKey, err := ioutil.ReadFile(privKeyName)
 	if err != nil {
 		die(err)
 	}
 
-	sender, err := ioutil.ReadFile(*pubKeyFile)
+	pubKey, err := ioutil.ReadFile(pubKeyName)
 	if err != nil {
 		die(err)
 	}
 
-	in, err := os.Open(*inFile)
+	in, err := os.Open(inputName)
 	if err != nil {
 		die(err)
 	}
 	defer in.Close()
 
-	out, err := os.Create(*outFile)
+	out, err := os.Create(outputName)
 	if err != nil {
 		die(err)
 	}
 	defer out.Close()
 
-	if err := grump.Decrypt(privKey, passphrase, sender, in, out); err != nil {
+	if err := grump.Decrypt(privKey, passphrase, pubKey, in, out); err != nil {
 		die(err)
 	}
 }

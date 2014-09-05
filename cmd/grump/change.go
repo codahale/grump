@@ -1,23 +1,31 @@
 package main
 
 import (
-	"flag"
 	"io/ioutil"
+	"strconv"
 
 	"github.com/codahale/grump"
 )
 
-func change() {
-	var (
-		n = flag.Int("N", 1<<20, "scrypt iterations")
-		r = flag.Int("r", 8, "scrypt block size")
-		p = flag.Int("p", 1, "scrypt parallelization factor")
+func change(args map[string]interface{}) {
+	n, err := strconv.ParseUint(args["-N"].(string), 10, 64)
+	if err != nil {
+		die(err)
+	}
 
-		privKeyName = flag.String("priv", "", "private key name")
-	)
-	flag.Parse()
+	r, err := strconv.Atoi(args["-r"].(string))
+	if err != nil {
+		die(err)
+	}
 
-	privKey, err := ioutil.ReadFile(*privKeyName)
+	p, err := strconv.Atoi(args["-p"].(string))
+	if err != nil {
+		die(err)
+	}
+
+	privKeyName := args["--priv"].(string)
+
+	privKey, err := ioutil.ReadFile(privKeyName)
 	if err != nil {
 		die(err)
 	}
@@ -32,12 +40,12 @@ func change() {
 		die(err)
 	}
 
-	privKey, err = grump.ChangePassphrase(privKey, oldPassphrase, newPassphrase, *n, *r, *p)
+	privKey, err = grump.ChangePassphrase(privKey, oldPassphrase, newPassphrase, 1<<uint(n), r, p)
 	if err != nil {
 		die(err)
 	}
 
-	if err := ioutil.WriteFile(*privKeyName, privKey, 0600); err != nil {
+	if err := ioutil.WriteFile(privKeyName, privKey, 0600); err != nil {
 		die(err)
 	}
 }

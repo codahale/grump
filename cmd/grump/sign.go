@@ -1,39 +1,35 @@
 package main
 
 import (
-	"flag"
 	"io/ioutil"
 	"os"
 
 	"github.com/codahale/grump"
 )
 
-func sign() {
-	var (
-		privKeyFile = flag.String("priv", "", "private key name")
-		inFile      = flag.String("in", "", "input file name")
-		sigFile     = flag.String("sig", "", "signature file name")
-		passPrompt  = flag.Bool("prompt", true, "prompt for passphrase")
-	)
-	flag.Parse()
+func sign(args map[string]interface{}) {
+	privKeyName := args["--priv"].(string)
+	inputName := args["<input>"].(string)
+	sigName := args["<signature>"].(string)
+	batch := args["--batch"] == true
 
-	passphrase, err := grump.ReadPassphrase(*passPrompt, "Passphrase: ")
+	passphrase, err := grump.ReadPassphrase(!batch, "Passphrase: ")
 	if err != nil {
 		die(err)
 	}
 
-	privKey, err := ioutil.ReadFile(*privKeyFile)
+	privKey, err := ioutil.ReadFile(privKeyName)
 	if err != nil {
 		die(err)
 	}
 
-	in, err := os.Open(*inFile)
+	in, err := os.Open(inputName)
 	if err != nil {
 		die(err)
 	}
 	defer in.Close()
 
-	sig, err := os.Create(*sigFile)
+	sig, err := os.Create(sigName)
 	if err != nil {
 		die(err)
 	}
