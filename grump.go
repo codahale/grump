@@ -349,7 +349,8 @@ func decryptPrivateKey(passphrase, pubKey []byte) ([]byte, []byte, error) {
 }
 
 // encryptMessageKey returns a header with encrypted copies of the message key
-// for each recipient.
+// for each recipient. Any recipient slices which are nil will be replaced with
+// fake recipients.
 func encryptMessageKey(decryptingKey, messageKey []byte, recipients [][]byte) (*pb.Header, error) {
 	recipients, err := secureShuffle(recipients)
 	if err != nil {
@@ -359,10 +360,21 @@ func encryptMessageKey(decryptingKey, messageKey []byte, recipients [][]byte) (*
 	keys := make([]*pb.EncryptedData, len(recipients))
 	var pubKey pb.PublicKey
 	for i, buf := range recipients {
-		if err := proto.Unmarshal(buf, &pubKey); err != nil {
-			return nil, err
+		var key []byte
+		if buf == nil {
+			// Create a fake recipient by using a random value as a shared
+			// secret.
+			key = make([]byte, chacha20poly1305.KeySize)
+			if _, err := rand.Read(key); err != nil {
+				return nil, err
+			}
+		} else {
+			if err := proto.Unmarshal(buf, &pubKey); err != nil {
+				return nil, err
+			}
+			key = sharedSecret(decryptingKey, pubKey.EncryptingKey)
+
 		}
-		key := sharedSecret(decryptingKey, pubKey.EncryptingKey)
 		aead, _ := chacha20poly1305.NewChaCha20Poly1305(key)
 
 		// generate a random nonce

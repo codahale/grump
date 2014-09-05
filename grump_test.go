@@ -34,7 +34,7 @@ func TestEncryptAndDecrypt(t *testing.T) {
 	if err := Encrypt(
 		alicePriv,
 		[]byte("alice"),
-		[][]byte{bobPub, carolPub},
+		[][]byte{bobPub, carolPub, nil, nil},
 		bytes.NewReader(message),
 		encryptedMessage,
 		16,

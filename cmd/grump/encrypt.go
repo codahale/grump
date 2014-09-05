@@ -33,12 +33,9 @@ func encrypt() {
 
 	var recipients [][]byte
 	for _, filename := range pubKeys {
-		if filename == "-" { // generate a fake recipient
-			recipient := make([]byte, 32)
-			if _, err := rand.Read(recipient); err != nil {
-				die(err)
-			}
-			recipients = append(recipients, recipient)
+		if filename == "-" {
+			// generate a fake recipient
+			recipients = append(recipients, nil)
 		} else {
 			recipient, err := ioutil.ReadFile(filename)
 			if err != nil {
