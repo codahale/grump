@@ -10,7 +10,7 @@ import (
 func sign(args map[string]interface{}) {
 	privKeyName := args["--priv"].(string)
 	inputName := args["<input>"].(string)
-	sigName := args["<signature>"].(string)
+	sigName := args["<output>"].(string)
 	batch := args["--batch"] == true
 
 	passphrase, err := grump.ReadPassphrase(!batch, "Passphrase: ")
