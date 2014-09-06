@@ -1,20 +1,11 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
 	"github.com/docopt/docopt-go"
 )
-
-func init() {
-	oldUsage := flag.Usage
-	flag.Usage = func() {
-		oldUsage()
-		os.Exit(64)
-	}
-}
 
 func main() {
 	usage := `Grump is a grumpy cryptosystem for asynchronous messages.
