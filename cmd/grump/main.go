@@ -14,7 +14,7 @@ Usage:
   grump generate [--batch] [-N=<int>] [-r=<int>] [-p=<int>] --pub=<file> --priv=<file>
   grump change [-N=<int>] [-r=<int>] [-p=<int>] --priv=<file>
   grump encrypt [--batch] --priv=<file> --pub=<file>... <input> <output>
-  grump decrypt [--batch] --priv=<file> --pub=<file <input> <output>
+  grump decrypt [--batch] --priv=<file> --pub=<file> <input> <output>
   grump sign [--batch] --priv=<file> <input> <output>
   grump verify [--quiet] --pub=<file> <input> <signature>
 
