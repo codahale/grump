@@ -1,3 +1,6 @@
+// Grump is a grumpy cryptosystem for asynchronous messages. It uses Curve25519
+// for public key encryption, Ed25519 for digital signatures, and
+// ChaCha20Poly1305 for symmetric encryption. You should not use it.
 package main
 
 import (
