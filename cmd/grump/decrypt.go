@@ -7,35 +7,30 @@ import (
 	"github.com/codahale/grump"
 )
 
-func decrypt(args map[string]interface{}) {
-	pubKeyName := args["--pub"].([]string)[0]
-	privKeyName := args["--priv"].(string)
-	inputName := args["<input>"].(string)
-	outputName := args["<output>"].(string)
-	batch := args["--batch"] == true
+func decrypt(pubKeyFilename, privKeyFilename, inFilename, outFilename string, batch bool) {
 
 	passphrase, err := grump.ReadPassphrase(!batch, "Passphrase: ")
 	if err != nil {
 		die(err)
 	}
 
-	privKey, err := ioutil.ReadFile(privKeyName)
+	privKey, err := ioutil.ReadFile(privKeyFilename)
 	if err != nil {
 		die(err)
 	}
 
-	pubKey, err := ioutil.ReadFile(pubKeyName)
+	pubKey, err := ioutil.ReadFile(pubKeyFilename)
 	if err != nil {
 		die(err)
 	}
 
-	in, err := os.Open(inputName)
+	in, err := os.Open(inFilename)
 	if err != nil {
 		die(err)
 	}
 	defer in.Close()
 
-	out, err := os.Create(outputName)
+	out, err := os.Create(outFilename)
 	if err != nil {
 		die(err)
 	}

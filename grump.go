@@ -44,7 +44,7 @@ const (
 
 // GenerateKeyPair creates a new Curve25519 key pair and encrypts the private
 // key with the given passphrase and scrypt parameters.
-func GenerateKeyPair(passphrase []byte, n, r, p int) ([]byte, []byte, error) {
+func GenerateKeyPair(passphrase []byte, n, r, p uint) ([]byte, []byte, error) {
 	// generate Curve25519 keys
 	encryptingKey, decryptingKey, err := genCurve25519Keys()
 	if err != nil {
@@ -75,7 +75,7 @@ func GenerateKeyPair(passphrase []byte, n, r, p int) ([]byte, []byte, error) {
 
 // ChangePassphrase decrypts the given private key with the old passphrase and
 // re-encrypts it with the new passphrase.
-func ChangePassphrase(privateKey, oldPassphrase, newPassphrase []byte, n, r, p int) ([]byte, error) {
+func ChangePassphrase(privateKey, oldPassphrase, newPassphrase []byte, n, r, p uint) ([]byte, error) {
 	decryptingKey, signingKey, err := decryptPrivateKey(oldPassphrase, privateKey)
 	if err != nil {
 		return nil, err
@@ -423,16 +423,13 @@ func sharedSecret(decryptingKey []byte, encryptingKey []byte) []byte {
 }
 
 // encryptPrivateKey creates an encrypted version of the given private key.
-func encryptPrivateKey(passphrase, decryptingKey, signingKey []byte, n, r, p int) ([]byte, error) {
+func encryptPrivateKey(passphrase, decryptingKey, signingKey []byte, n, r, p uint) ([]byte, error) {
 	// derive the symmetric key from the passphrase
 	salt := make([]byte, 32) // 256-bit salt
 	if _, err := rand.Read(salt); err != nil {
 		return nil, err
 	}
-	key, err := scrypt.Key(passphrase, salt, n, r, p, chacha20poly1305.KeySize)
-	if err != nil {
-		return nil, err
-	}
+	key, _ := scrypt.Key(passphrase, salt, 1<<n, int(r), int(p), chacha20poly1305.KeySize)
 	aead, _ := chacha20poly1305.NewChaCha20Poly1305(key)
 
 	// encrypt the decrypting key
@@ -451,7 +448,7 @@ func encryptPrivateKey(passphrase, decryptingKey, signingKey []byte, n, r, p int
 
 	// serialize the private key
 	return proto.Marshal(&pb.PrivateKey{
-		N:    proto.Uint64(uint64(n)),
+		N:    proto.Uint64(uint64(1 << n)),
 		R:    proto.Uint64(uint64(r)),
 		P:    proto.Uint64(uint64(p)),
 		Salt: salt,

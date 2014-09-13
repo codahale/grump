@@ -7,24 +7,19 @@ import (
 	"github.com/codahale/grump"
 )
 
-func encrypt(args map[string]interface{}) {
-	privKeyName := args["--priv"].(string)
-	inputName := args["<input>"].(string)
-	outputName := args["<output>"].(string)
-	batch := args["--batch"] == true
-
+func encrypt(pubKeyFilenames []string, privKeyFilename, inFilename, outFilename string, batch bool) {
 	passphrase, err := grump.ReadPassphrase(!batch, "Passphrase: ")
 	if err != nil {
 		die(err)
 	}
 
-	privKey, err := ioutil.ReadFile(privKeyName)
+	privKey, err := ioutil.ReadFile(privKeyFilename)
 	if err != nil {
 		die(err)
 	}
 
 	var recipients [][]byte
-	for _, filename := range args["--pub"].([]string) {
+	for _, filename := range pubKeyFilenames {
 		if filename == "-" {
 			// generate a fake recipient
 			recipients = append(recipients, nil)
@@ -37,13 +32,13 @@ func encrypt(args map[string]interface{}) {
 		}
 	}
 
-	in, err := os.Open(inputName)
+	in, err := os.Open(inFilename)
 	if err != nil {
 		die(err)
 	}
 	defer in.Close()
 
-	out, err := os.Create(outputName)
+	out, err := os.Create(outFilename)
 	if err != nil {
 		die(err)
 	}

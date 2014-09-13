@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/docopt/docopt-go"
 )
@@ -34,17 +35,74 @@ Options:
 	}
 
 	if args["generate"] == true {
-		generate(args)
+		n, err := strconv.ParseUint(args["-N"].(string), 10, 64)
+		if err != nil {
+			die(err)
+		}
+
+		r, err := strconv.ParseUint(args["-r"].(string), 10, 64)
+		if err != nil {
+			die(err)
+		}
+
+		p, err := strconv.ParseUint(args["-p"].(string), 10, 64)
+		if err != nil {
+			die(err)
+		}
+
+		generate(
+			uint(n), uint(r), uint(p),
+			args["--pub"].([]string)[0],
+			args["--priv"].(string),
+			args["--batch"] == true,
+		)
 	} else if args["change"] == true {
-		change(args)
+		n, err := strconv.ParseUint(args["-N"].(string), 10, 64)
+		if err != nil {
+			die(err)
+		}
+
+		r, err := strconv.ParseUint(args["-r"].(string), 10, 64)
+		if err != nil {
+			die(err)
+		}
+
+		p, err := strconv.ParseUint(args["-p"].(string), 10, 64)
+		if err != nil {
+			die(err)
+		}
+
+		change(uint(n), uint(r), uint(p), args["--priv"].(string))
 	} else if args["encrypt"] == true {
-		encrypt(args)
+		encrypt(
+			args["--pub"].([]string),
+			args["--priv"].(string),
+			args["<input>"].(string),
+			args["<output>"].(string),
+			args["--batch"] == true,
+		)
 	} else if args["decrypt"] == true {
-		decrypt(args)
+		decrypt(
+			args["--pub"].([]string)[0],
+			args["--priv"].(string),
+			args["<input>"].(string),
+			args["<output>"].(string),
+			args["--batch"] == true,
+		)
 	} else if args["sign"] == true {
-		sign(args)
+		sign(
+			args["--priv"].(string),
+			args["<input>"].(string),
+			args["<output>"].(string),
+			args["--batch"] == true,
+		)
 	} else if args["verify"] == true {
-		verify(args)
+		verify(
+			args["--pub"].([]string)[0],
+			args["<input>"].(string),
+			args["<signature>"].(string),
+			args["--quiet"] == true,
+		)
 	}
 }
 

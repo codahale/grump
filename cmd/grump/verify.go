@@ -8,29 +8,24 @@ import (
 	"github.com/codahale/grump"
 )
 
-func verify(args map[string]interface{}) {
-	pubKeyName := args["--pub"].([]string)[0]
-	inputName := args["<input>"].(string)
-	sigName := args["<signature>"].(string)
-	quiet := args["--quiet"] == true
-
-	pubKey, err := ioutil.ReadFile(pubKeyName)
+func verify(pubKeyFilename, inFilename, sigFilename string, quiet bool) {
+	pubKey, err := ioutil.ReadFile(pubKeyFilename)
 	if err != nil {
 		die(err)
 	}
 
-	signature, err := ioutil.ReadFile(sigName)
+	sig, err := ioutil.ReadFile(sigFilename)
 	if err != nil {
 		die(err)
 	}
 
-	in, err := os.Open(inputName)
+	in, err := os.Open(inFilename)
 	if err != nil {
 		die(err)
 	}
 	defer in.Close()
 
-	err = grump.Verify(pubKey, signature, in)
+	err = grump.Verify(pubKey, sig, in)
 	if err != nil {
 		if quiet {
 			os.Exit(-1)

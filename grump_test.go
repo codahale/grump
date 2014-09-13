@@ -7,22 +7,22 @@ import (
 )
 
 func TestEncryptAndDecrypt(t *testing.T) {
-	alicePub, alicePriv, err := GenerateKeyPair([]byte("alice"), 256, 8, 1)
+	alicePub, alicePriv, err := GenerateKeyPair([]byte("alice"), 8, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	bobPub, bobPriv, err := GenerateKeyPair([]byte("bob"), 256, 8, 1)
+	bobPub, bobPriv, err := GenerateKeyPair([]byte("bob"), 8, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	carolPub, carolPriv, err := GenerateKeyPair([]byte("carol"), 256, 8, 1)
+	carolPub, carolPriv, err := GenerateKeyPair([]byte("carol"), 8, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, evePriv, err := GenerateKeyPair([]byte("eve"), 256, 8, 1)
+	_, evePriv, err := GenerateKeyPair([]byte("eve"), 8, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,29 +107,13 @@ func TestEncryptAndDecrypt(t *testing.T) {
 	}
 }
 
-func TestGenerateKeyPairBadParams(t *testing.T) {
-	pub, priv, err := GenerateKeyPair([]byte("woo"), -100, 1, 1)
-
-	if pub != nil {
-		t.Errorf("Expected no public key, but got %v", pub)
-	}
-
-	if priv != nil {
-		t.Errorf("Expected no private key, but got %v", priv)
-	}
-
-	if err == nil {
-		t.Error("Expected an error, but got none")
-	}
-}
-
 func TestChangePassphrase(t *testing.T) {
-	pub, priv, err := GenerateKeyPair([]byte("woo"), 256, 8, 1)
+	pub, priv, err := GenerateKeyPair([]byte("woo"), 8, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	newPriv, err := ChangePassphrase(priv, []byte("woo"), []byte("yay"), 1024, 8, 1)
+	newPriv, err := ChangePassphrase(priv, []byte("woo"), []byte("yay"), 10, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +148,7 @@ func TestChangePassphrase(t *testing.T) {
 }
 
 func TestEncryptBadPassphrase(t *testing.T) {
-	pub, priv, err := GenerateKeyPair([]byte("woo"), 256, 8, 1)
+	pub, priv, err := GenerateKeyPair([]byte("woo"), 8, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +166,7 @@ func TestEncryptBadPassphrase(t *testing.T) {
 }
 
 func TestDecryptBadPassphrase(t *testing.T) {
-	pub, priv, err := GenerateKeyPair([]byte("woo"), 256, 8, 1)
+	pub, priv, err := GenerateKeyPair([]byte("woo"), 8, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +183,7 @@ func TestDecryptBadPassphrase(t *testing.T) {
 }
 
 func TestSignAndVerify(t *testing.T) {
-	pub, priv, err := GenerateKeyPair([]byte("woo"), 256, 8, 1)
+	pub, priv, err := GenerateKeyPair([]byte("woo"), 8, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +231,7 @@ func TestSignAndVerify(t *testing.T) {
 }
 
 func TestSignAndVerifyBadMessage(t *testing.T) {
-	pub, priv, err := GenerateKeyPair([]byte("woo"), 256, 8, 1)
+	pub, priv, err := GenerateKeyPair([]byte("woo"), 8, 8, 1)
 	if err != nil {
 		t.Fatal(err)
 	}

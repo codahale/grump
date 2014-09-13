@@ -2,50 +2,32 @@ package main
 
 import (
 	"io/ioutil"
-	"strconv"
 
 	"github.com/codahale/grump"
 )
 
-func change(args map[string]interface{}) {
-	n, err := strconv.ParseUint(args["-N"].(string), 10, 64)
+func change(n, r, p uint, privKeyFilename string) {
+	privKey, err := ioutil.ReadFile(privKeyFilename)
 	if err != nil {
 		die(err)
 	}
 
-	r, err := strconv.Atoi(args["-r"].(string))
+	oldPass, err := grump.ReadPassphrase(true, "Old passphrase: ")
 	if err != nil {
 		die(err)
 	}
 
-	p, err := strconv.Atoi(args["-p"].(string))
+	newPass, err := grump.ReadPassphrase(true, "New passphrase: ")
 	if err != nil {
 		die(err)
 	}
 
-	privKeyName := args["--priv"].(string)
-
-	privKey, err := ioutil.ReadFile(privKeyName)
+	privKey, err = grump.ChangePassphrase(privKey, oldPass, newPass, n, r, p)
 	if err != nil {
 		die(err)
 	}
 
-	oldPassphrase, err := grump.ReadPassphrase(true, "Old passphrase: ")
-	if err != nil {
-		die(err)
-	}
-
-	newPassphrase, err := grump.ReadPassphrase(true, "New passphrase: ")
-	if err != nil {
-		die(err)
-	}
-
-	privKey, err = grump.ChangePassphrase(privKey, oldPassphrase, newPassphrase, 1<<uint(n), r, p)
-	if err != nil {
-		die(err)
-	}
-
-	if err := ioutil.WriteFile(privKeyName, privKey, 0600); err != nil {
+	if err := ioutil.WriteFile(privKeyFilename, privKey, 0600); err != nil {
 		die(err)
 	}
 }
