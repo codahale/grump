@@ -185,7 +185,7 @@
 // (https://code.google.com/p/protobuf/wiki/ThirdPartyAddOns).
 //
 //
-// Curve25519 & Ed25519
+// Curve25519 And Ed25519
 //
 // These algorithms were selected because they're both fast, constant-time,
 // require entropy for key generation only, use small keys, and use safe
@@ -198,7 +198,7 @@
 // constant-time.
 //
 //
-// scrypt
+// Scrypt
 //
 // scrypt was chosen as a PBKDF algorithm because it's resistant to CPU-, GPU-,
 // FPGA-, and ASIC-optimized dictionary attacks.
