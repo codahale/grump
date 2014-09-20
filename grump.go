@@ -103,7 +103,7 @@ func Encrypt(privateKey, passphrase []byte, recipients [][]byte, r io.Reader, w 
 	if _, err := rand.Read(messageKey); err != nil {
 		return err
 	}
-	aead, _ := chacha20poly1305.NewChaCha20Poly1305(messageKey)
+	aead, _ := chacha20poly1305.New(messageKey)
 
 	// encrypt the message key for all recipients
 	header, err := encryptMessageKey(decryptingKey, messageKey, recipients)
@@ -184,7 +184,7 @@ func Decrypt(privateKey, passphrase, sender []byte, r io.Reader, w io.Writer) er
 	if err != nil {
 		return err
 	}
-	aead, err := chacha20poly1305.NewChaCha20Poly1305(messageKey)
+	aead, err := chacha20poly1305.New(messageKey)
 	if err != nil {
 		return err
 	}
@@ -324,7 +324,7 @@ func decryptPrivateKey(passphrase, pubKey []byte) ([]byte, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	aead, err := chacha20poly1305.NewChaCha20Poly1305(key)
+	aead, err := chacha20poly1305.New(key)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -373,7 +373,7 @@ func encryptMessageKey(decryptingKey, messageKey []byte, recipients [][]byte) (*
 			key = sharedSecret(decryptingKey, pubKey.EncryptingKey)
 
 		}
-		aead, _ := chacha20poly1305.NewChaCha20Poly1305(key)
+		aead, _ := chacha20poly1305.New(key)
 
 		// generate a random nonce
 		nonce := make([]byte, aead.NonceSize())
@@ -395,7 +395,7 @@ func encryptMessageKey(decryptingKey, messageKey []byte, recipients [][]byte) (*
 // in a header.
 func decryptMessageKey(decryptingKey []byte, encryptingKey []byte, header *pb.Header) ([]byte, error) {
 	key := sharedSecret(decryptingKey, encryptingKey)
-	aead, _ := chacha20poly1305.NewChaCha20Poly1305(key)
+	aead, _ := chacha20poly1305.New(key)
 	for _, k := range header.Keys {
 		key, err := aead.Open(nil, k.Nonce, k.Ciphertext, nil)
 		if err == nil {
@@ -428,7 +428,7 @@ func encryptPrivateKey(passphrase, decryptingKey, signingKey []byte, n, r, p uin
 		return nil, err
 	}
 	key, _ := scrypt.Key(passphrase, salt, 1<<n, int(r), int(p), chacha20poly1305.KeySize)
-	aead, _ := chacha20poly1305.NewChaCha20Poly1305(key)
+	aead, _ := chacha20poly1305.New(key)
 
 	// encrypt the decrypting key
 	decNonce := make([]byte, aead.NonceSize())
