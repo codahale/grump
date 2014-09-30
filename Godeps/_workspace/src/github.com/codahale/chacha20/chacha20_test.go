@@ -1,15 +1,13 @@
-package chacha20
+package chacha20_test
 
 import (
 	"bytes"
-	"crypto/cipher"
 	"encoding/hex"
 	"fmt"
 	"testing"
-)
 
-// assert that a pointer to Cipher actually meets the cipher.Stream interface
-var _ cipher.Stream = &Cipher{}
+	"github.com/codahale/chacha20"
+)
 
 // stolen from http://tools.ietf.org/html/draft-agl-tls-chacha20poly1305-00#section-7
 var testVectors = [][]string{
@@ -54,7 +52,7 @@ func TestChaCha20(t *testing.T) {
 			t.Error(err)
 		}
 
-		c, err := NewCipher(key, nonce)
+		c, err := chacha20.New(key, nonce)
 		if err != nil {
 			t.Error(err)
 		}
@@ -81,69 +79,24 @@ func TestChaCha20(t *testing.T) {
 	}
 }
 
-func TestReset(t *testing.T) {
-	key := make([]byte, KeySize)
-	nonce := make([]byte, NonceSize)
-
-	c, _ := NewCipher(key, nonce)
-
-	src := make([]byte, 100)
-	dst := make([]byte, 100)
-
-	c.XORKeyStream(dst, src)
-
-	sum := 0
-	for _, v := range src {
-		sum += int(v)
-	}
-
-	for _, v := range dst {
-		sum += int(v)
-	}
-
-	if sum == 0 {
-		t.Error("Should have encrypted zeros to non-zeros but didn't — super weird")
-	}
-
-	c.Reset()
-
-	src = make([]byte, 100)
-	dst = make([]byte, 100)
-
-	c.XORKeyStream(dst, src)
-
-	sum = 0
-	for _, v := range src {
-		sum += int(v)
-	}
-
-	for _, v := range dst {
-		sum += int(v)
-	}
-
-	if sum != 0 {
-		t.Error("Should have cleared the cipher state but didn't")
-	}
-}
-
 func TestBadKeySize(t *testing.T) {
 	key := make([]byte, 3)
-	nonce := make([]byte, NonceSize)
+	nonce := make([]byte, chacha20.NonceSize)
 
-	_, err := NewCipher(key, nonce)
+	_, err := chacha20.New(key, nonce)
 
-	if err != ErrInvalidKey {
+	if err != chacha20.ErrInvalidKey {
 		t.Error("Should have rejected an invalid key")
 	}
 }
 
 func TestBadNonceSize(t *testing.T) {
-	key := make([]byte, KeySize)
+	key := make([]byte, chacha20.KeySize)
 	nonce := make([]byte, 3)
 
-	_, err := NewCipher(key, nonce)
+	_, err := chacha20.New(key, nonce)
 
-	if err != ErrInvalidNonce {
+	if err != chacha20.ErrInvalidNonce {
 		t.Error("Should have rejected an invalid nonce")
 	}
 }
@@ -160,7 +113,7 @@ func ExampleCipher() {
 		panic(err)
 	}
 
-	c, err := NewCipher(key, nonce)
+	c, err := chacha20.New(key, nonce)
 	if err != nil {
 		panic(err)
 	}

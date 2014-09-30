@@ -1,34 +1,34 @@
 // Package chacha20poly1305 implements the AEAD_CHACHA20_POLY1305 algorithm,
-// which combines ChaCha20, a secure stream cipher, with Poly1305, a secure
-// MAC function.
+// which combines ChaCha20, a secure stream cipher, with Poly1305, a secure MAC
+// function.
 //
 //     ChaCha20 is run with the given key and nonce and with the two counter
-//     words set to zero. The first 32 bytes of the 64 byte output are
-//     saved to become the one-time key for Poly1305. The remainder of the
-//     output is discarded. The first counter input word is set to one and
-//     the plaintext is encrypted by XORing it with the output of
-//     invocations of the ChaCha20 function as needed, incrementing the
-//     first counter word after each block and overflowing into the second.
-//     (In the case of the TLS, limits on the plaintext size mean that the
-//     first counter word will never overflow in practice.)
+//     words set to zero. The first 32 bytes of the 64 byte output are saved to
+//     become the one-time key for Poly1305. The remainder of the output is
+//     discarded. The first counter input word is set to one and the plaintext
+//     is encrypted by XORing it with the output of invocations of the ChaCha20
+//     function as needed, incrementing the first counter word after each block
+//     and overflowing into the second.  (In the case of the TLS, limits on the
+//     plaintext size mean that the first counter word will never overflow in
+//     practice.)
 //
-//     The Poly1305 key is used to calculate a tag for the following input:
-//     the concatenation of the number of bytes of additional data, the
-//     additional data itself, the number of bytes of ciphertext and the
-//     ciphertext itself. Numbers are represented as 8-byte, little-endian
-//     values.  The resulting tag is appended to the ciphertext, resulting
-//     in the output of the AEAD operation.
+//     The Poly1305 key is used to calculate a tag for the following input: the
+//     concatenation of the number of bytes of additional data, the additional
+//     data itself, the number of bytes of ciphertext and the ciphertext
+//     itself. Numbers are represented as 8-byte, little-endian values.  The
+//     resulting tag is appended to the ciphertext, resulting in the output of
+//     the AEAD operation.
 //
 // (http://tools.ietf.org/html/draft-agl-tls-chacha20poly1305-04)
 //
 // The AEAD (Athenticated Encryption with Associated Data) construction provides
 // a unified API for sealing messages in a way which provides both
-// confidentiality *and* integrity. Unlike unauthenticated modes like CBC,
-// AEAD algorithms are resistant to chosen ciphertext attacks, such as padding
-// oracle attacks, etc., and add only 16 bytes of overhead.
+// confidentiality *and* integrity. Unlike unauthenticated modes like CBC, AEAD
+// algorithms are resistant to chosen ciphertext attacks, such as padding oracle
+// attacks, etc., and add only 16 bytes of overhead.
 //
 // AEAD_CHACHA20_POLY1305 has a significant speed advantage over other AEAD
-// algorithms like AES-GCM, as well as being extremeley resistant to timing
+// algorithms like AES-GCM, as well as being extremely resistant to timing
 // attacks.
 package chacha20poly1305
 
@@ -42,18 +42,16 @@ import (
 	"github.com/codahale/chacha20"
 )
 
-type chacha20Key [chacha20.KeySize]byte // A 256-bit ChaCha20 key.
-
 var (
 	// ErrAuthFailed is returned when the message authentication is invalid due
 	// to tampering.
-	ErrAuthFailed = errors.New("chacha20poly1305: message authentication failed")
+	ErrAuthFailed = errors.New("message authentication failed")
 
 	// ErrInvalidKey is returned when the provided key is the wrong size.
-	ErrInvalidKey = errors.New("chacha20poly1305: invalid key size")
+	ErrInvalidKey = errors.New("invalid key size")
 
 	// ErrInvalidNonce is returned when the provided nonce is the wrong size.
-	ErrInvalidNonce = errors.New("chacha20poly1305: invalid nonce size")
+	ErrInvalidNonce = errors.New("invalid nonce size")
 
 	// KeySize is the required size of ChaCha20 keys.
 	KeySize = chacha20.KeySize
@@ -73,6 +71,8 @@ func New(key []byte) (cipher.AEAD, error) {
 
 	return k, nil
 }
+
+type chacha20Key [chacha20.KeySize]byte // A 256-bit ChaCha20 key.
 
 func (*chacha20Key) NonceSize() int {
 	return chacha20.NonceSize
@@ -122,7 +122,7 @@ func (k *chacha20Key) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) 
 // Converts the given key and nonce into 64 bytes of ChaCha20 key stream, the
 // first 32 of which are used as the Poly1305 key.
 func (k *chacha20Key) initialize(nonce []byte) (cipher.Stream, [32]byte) {
-	c, err := chacha20.NewCipher(k[0:], nonce)
+	c, err := chacha20.New(k[0:], nonce)
 	if err != nil {
 		panic(err) // basically impossible
 	}
