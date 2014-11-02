@@ -21,6 +21,8 @@ Usage:
   grump decrypt [--batch] --priv=<file> --pub=<file> <input> <output>
   grump sign [--batch] --priv=<file> <input> <output>
   grump verify [--quiet] --pub=<file> <input> <signature>
+  grump wrap  [--batch] --pub=<file> --priv=<file> --peer=<peer> <listen> <connect>
+  grump unwrap  [--batch] --pub=<file> --priv=<file> --peer=<peer> <listen> <connect>
 
 Options:
   -h --help     Show this screen.
@@ -105,6 +107,24 @@ Options:
 			args["<input>"].(string),
 			args["<signature>"].(string),
 			args["--quiet"] == true,
+		)
+	} else if args["wrap"] == true {
+		wrap(
+			args["--pub"].([]string)[0],
+			args["--priv"].(string),
+			args["--peer"].(string),
+			args["<listen>"].(string),
+			args["<connect>"].(string),
+			args["--batch"] == true,
+		)
+	} else if args["unwrap"] == true {
+		unwrap(
+			args["--pub"].([]string)[0],
+			args["--priv"].(string),
+			args["--peer"].(string),
+			args["<listen>"].(string),
+			args["<connect>"].(string),
+			args["--batch"] == true,
 		)
 	}
 }
