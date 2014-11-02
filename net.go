@@ -75,13 +75,14 @@ func (l listener) Accept() (net.Conn, error) {
 	}
 
 	conn := conn{
-		buf:          bytes.NewBuffer(nil),
-		conn:         c,
-		pubKey:       l.pubKey,
-		signingKey:   l.signingKey,
-		verifyingKey: l.verifyingKey,
+		buf:  bytes.NewBuffer(nil),
+		conn: c,
 	}
-	if err := conn.handshake(); err != nil {
+	if err := conn.handshake(
+		l.pubKey,
+		l.signingKey,
+		l.verifyingKey,
+	); err != nil {
 		return nil, err
 	}
 	return &conn, nil
@@ -111,27 +112,27 @@ func Dial(network, address string, privateKey, passphrase, publicKey, peerKey []
 		return nil, err
 	}
 	conn := conn{
-		buf:          bytes.NewBuffer(nil),
-		conn:         c,
-		pubKey:       pubKey.VerifyingKey,
-		signingKey:   signingKey,
-		verifyingKey: prKey.VerifyingKey,
+		buf:  bytes.NewBuffer(nil),
+		conn: c,
 	}
 
-	if err := conn.handshake(); err != nil {
+	if err := conn.handshake(
+		pubKey.VerifyingKey,
+		signingKey,
+		prKey.VerifyingKey,
+	); err != nil {
 		return nil, err
 	}
 	return &conn, nil
 }
 
 type conn struct {
-	conn                             net.Conn
-	pubKey, signingKey, verifyingKey []byte
-	buf                              *bytes.Buffer
-	sending, receiving               cipher.AEAD
+	conn               net.Conn
+	buf                *bytes.Buffer
+	sending, receiving cipher.AEAD
 }
 
-func (c *conn) handshake() error {
+func (c *conn) handshake(pubKey, signingKey, verifyingKey []byte) error {
 	// generate a random nonce
 	nonce := make([]byte, 32)
 	if _, err := rand.Read(nonce); err != nil {
@@ -160,7 +161,7 @@ func (c *conn) handshake() error {
 	curve25519.ScalarBaseMult(&y, &x)
 
 	// create signature of both ECDH presecret and peer nonce
-	sig := ed25519Sign(c.signingKey, append(peerNonce, y[:]...))
+	sig := ed25519Sign(signingKey, append(peerNonce, y[:]...))
 
 	// send it as second part of handshake
 	if err := c.writeHandshakeB(y[:], sig); err != nil {
@@ -174,7 +175,7 @@ func (c *conn) handshake() error {
 	}
 
 	// verify the signature of the peer's point and our nonce
-	if !ed25519Verify(c.verifyingKey, append(nonce, peerY[:]...), peerSig) {
+	if !ed25519Verify(verifyingKey, append(nonce, peerY[:]...), peerSig) {
 		return errors.New("bad handshake")
 	}
 
@@ -188,7 +189,7 @@ func (c *conn) handshake() error {
 
 	// sending key is derived from the shared secret w/ HKDF-SHA512 using the
 	// peer's public key as the label
-	sR := hkdf.New(sha512.New, secret[:], nil, c.verifyingKey)
+	sR := hkdf.New(sha512.New, secret[:], nil, verifyingKey)
 	if _, err := io.ReadFull(sR, sendingKey); err != nil {
 		return err
 	}
@@ -196,7 +197,7 @@ func (c *conn) handshake() error {
 
 	// receiving key is derived from the shared secret w/ HKDF-SHA512 using the
 	// agents's public key as the label
-	rR := hkdf.New(sha512.New, secret[:], nil, c.pubKey)
+	rR := hkdf.New(sha512.New, secret[:], nil, pubKey)
 	if _, err := io.ReadFull(rR, receivingKey); err != nil {
 		return err
 	}
