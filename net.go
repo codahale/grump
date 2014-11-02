@@ -1,6 +1,7 @@
 package grump
 
 import (
+	"bytes"
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha512"
@@ -74,6 +75,7 @@ func (l listener) Accept() (net.Conn, error) {
 	}
 
 	conn := conn{
+		buf:          bytes.NewBuffer(nil),
 		conn:         c,
 		pubKey:       l.pubKey,
 		signingKey:   l.signingKey,
@@ -109,6 +111,7 @@ func Dial(network, address string, privateKey, passphrase, publicKey, peerKey []
 		return nil, err
 	}
 	conn := conn{
+		buf:          bytes.NewBuffer(nil),
 		conn:         c,
 		pubKey:       pubKey.VerifyingKey,
 		signingKey:   signingKey,
@@ -124,7 +127,7 @@ func Dial(network, address string, privateKey, passphrase, publicKey, peerKey []
 type conn struct {
 	conn                             net.Conn
 	pubKey, signingKey, verifyingKey []byte
-	buf                              []byte
+	buf                              *bytes.Buffer
 	sending, receiving               cipher.AEAD
 }
 
@@ -203,41 +206,30 @@ func (c *conn) handshake() error {
 }
 
 func (c *conn) Read(p []byte) (int, error) {
-	n := len(p)
-
-	for len(p) > 0 {
-		if len(c.buf) >= len(p) { // if we have more than enough buffered
-			// copy from buffer
-			copy(p, c.buf)
-
-			// truncate buffer
-			c.buf = c.buf[len(p):]
-
-			if len(c.buf) > 0 {
-				return n, io.ErrShortBuffer
-			}
-			return n, nil
-		}
-
-		// if we don't have enough buffered, read a message
-		var msg pb.EncryptedData
-		if err := c.readMsg(&msg); err != nil {
-			return 0, err
-		}
-
-		// decrypt it
-		d, err := c.receiving.Open(nil, msg.Nonce, msg.Ciphertext, nil)
-		if err != nil {
-			// close the connection on tampering
-			_ = c.Close()
-			return 0, err
-		}
-
-		// append the new message to the buffer
-		c.buf = append(c.buf, d...)
+	// handle the read from the buffer if there is any
+	if c.buf.Len() > 0 {
+		return c.buf.Read(p)
 	}
 
-	return n, nil
+	// if we don't have enough buffered, read a message
+	var msg pb.EncryptedData
+	if err := c.readMsg(&msg); err != nil {
+		return 0, err
+	}
+
+	// decrypt it
+	d, err := c.receiving.Open(nil, msg.Nonce, msg.Ciphertext, nil)
+	if err != nil {
+		// close the connection on tampering
+		_ = c.Close()
+		return 0, err
+	}
+
+	// append the new message to the buffer
+	_, _ = c.buf.Write(d)
+
+	// try again!
+	return c.Read(p)
 }
 
 func (c *conn) Write(p []byte) (int, error) {

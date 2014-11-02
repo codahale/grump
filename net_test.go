@@ -1,10 +1,9 @@
 package grump_test
 
 import (
+	"bufio"
 	"fmt"
 	"reflect"
-	"sort"
-	"sync"
 	"testing"
 
 	"github.com/codahale/grump"
@@ -27,10 +26,6 @@ func TestSockets(t *testing.T) {
 	}
 	defer l.Close()
 
-	data := make(chan string, 100)
-	var wg sync.WaitGroup
-	wg.Add(1)
-
 	go func() {
 		conn, err := l.Accept()
 		if err != nil {
@@ -41,16 +36,6 @@ func TestSockets(t *testing.T) {
 		if _, err := fmt.Fprintln(conn, "this is the server."); err != nil {
 			t.Fatal(err)
 		}
-
-		b := make([]byte, len("this is the client!\n"))
-
-		if _, err := conn.Read(b); err != nil {
-			t.Fatal(err)
-		}
-
-		wg.Done()
-
-		data <- string(b)
 	}()
 
 	conn, err := grump.Dial("tcp", l.Addr().String(), privB, []byte("two"), pubB, pubA)
@@ -59,33 +44,14 @@ func TestSockets(t *testing.T) {
 	}
 	defer conn.Close()
 
-	if _, err := fmt.Fprintln(conn, "this is the client!"); err != nil {
-		t.Fatal(err)
+	var data []string
+	scanner := bufio.NewScanner(conn)
+	for scanner.Scan() {
+		data = append(data, scanner.Text())
 	}
 
-	b := make([]byte, len("this is the server.\n"))
-
-	if _, err := conn.Read(b); err != nil {
-		t.Fatal(err)
-	}
-
-	data <- string(b)
-
-	wg.Wait()
-	close(data)
-
-	var v []string
-	for s := range data {
-		v = append(v, s)
-	}
-	sort.Strings(v)
-
-	expected := []string{
-		"this is the client!\n",
-		"this is the server.\n",
-	}
-
-	if !reflect.DeepEqual(v, expected) {
-		t.Errorf("Was %#v, but expected %#v", v, expected)
+	expected := []string{"this is the server."}
+	if !reflect.DeepEqual(expected, data) {
+		t.Errorf("Was %v but expected %v", data, expected)
 	}
 }
