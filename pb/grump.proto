@@ -51,3 +51,14 @@ message EncryptedData {
   required bytes nonce      = 1; // a random nonce
   required bytes ciphertext = 2; // the ciphertext, including Poly1305 tag
 }
+
+// The first half of a handshake.
+message HandshakeA {
+  required bytes nonce = 1; // a random nonce
+}
+
+// The second half of a handshake.
+message HandshakeB {
+  required bytes presecret = 1; // ECDH presecret
+  required bytes signature = 2; // Ed25519 signature of presecret and nonce
+}

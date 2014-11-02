@@ -15,6 +15,8 @@ It has these top-level messages:
 	PublicKey
 	PrivateKey
 	EncryptedData
+	HandshakeA
+	HandshakeB
 */
 package pb
 
@@ -201,6 +203,48 @@ func (m *EncryptedData) GetNonce() []byte {
 func (m *EncryptedData) GetCiphertext() []byte {
 	if m != nil {
 		return m.Ciphertext
+	}
+	return nil
+}
+
+// The first half of a handshake.
+type HandshakeA struct {
+	Nonce            []byte `protobuf:"bytes,1,req,name=nonce" json:"nonce,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *HandshakeA) Reset()         { *m = HandshakeA{} }
+func (m *HandshakeA) String() string { return proto.CompactTextString(m) }
+func (*HandshakeA) ProtoMessage()    {}
+
+func (m *HandshakeA) GetNonce() []byte {
+	if m != nil {
+		return m.Nonce
+	}
+	return nil
+}
+
+// The second half of a handshake.
+type HandshakeB struct {
+	Presecret        []byte `protobuf:"bytes,1,req,name=presecret" json:"presecret,omitempty"`
+	Signature        []byte `protobuf:"bytes,2,req,name=signature" json:"signature,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *HandshakeB) Reset()         { *m = HandshakeB{} }
+func (m *HandshakeB) String() string { return proto.CompactTextString(m) }
+func (*HandshakeB) ProtoMessage()    {}
+
+func (m *HandshakeB) GetPresecret() []byte {
+	if m != nil {
+		return m.Presecret
+	}
+	return nil
+}
+
+func (m *HandshakeB) GetSignature() []byte {
+	if m != nil {
+		return m.Signature
 	}
 	return nil
 }
