@@ -243,4 +243,26 @@
 // The final element of a message is an Ed25519 signature of the SHA-512 hash of
 // every byte in the message which precedes the signature's frame.  Any attempt
 // to modify the message will fail this verification.
+//
+// Synchronous Communications
+//
+// Grump also provides a system for secure, synchronous communication. It uses a
+// simple, two-round handshake.
+//
+// First, Alice and Bob send each other random 256-bit nonces.
+//
+// Second, Alice generates a random Curve25519 point, and multiplies it by the
+// curve's base to produce her ECDH presecret. She also creates an Ed25519
+// signature of Bob's nonce and her ECDH presecret. She sends both the ECDH
+// presecret and the signature. Bob does the same.
+//
+// They both verify each other's signatures, and if the signature is valid,
+// calculate the final ECDH shared secret. They each derive two keys using
+// HKDF-SHA512: one for sending data (using a null salt and the peer's public
+// key as the info), and one for receiving data (using a null salt and their own
+// public key as the info).
+//
+// Data is then transmitted back and forth using standard Grump encrypted data
+// packets, each encrypted with ChaCha20Poly1305 and a random nonce. If any of
+// the packets fail to decrypt, the connection is closed.
 package grump
