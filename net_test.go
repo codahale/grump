@@ -1,9 +1,8 @@
 package grump_test
 
 import (
-	"bufio"
-	"fmt"
-	"reflect"
+	"bytes"
+	"io/ioutil"
 	"testing"
 
 	"github.com/codahale/grump"
@@ -33,8 +32,12 @@ func TestSockets(t *testing.T) {
 		}
 		defer conn.Close()
 
-		if _, err := fmt.Fprintln(conn, "this is the server."); err != nil {
-			t.Fatal(err)
+		data := expected
+		for len(data) > 0 {
+			if _, err := conn.Write(data[:256]); err != nil {
+				t.Fatal(err)
+			}
+			data = data[256:]
 		}
 	}()
 
@@ -44,14 +47,22 @@ func TestSockets(t *testing.T) {
 	}
 	defer conn.Close()
 
-	var data []string
-	scanner := bufio.NewScanner(conn)
-	for scanner.Scan() {
-		data = append(data, scanner.Text())
+	actual, err := ioutil.ReadAll(conn)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	expected := []string{"this is the server."}
-	if !reflect.DeepEqual(expected, data) {
-		t.Errorf("Was %v but expected %v", data, expected)
+	if !bytes.Equal(actual, expected) {
+		t.Fatal("Didn't receive exactly what was sent")
+	}
+}
+
+var (
+	expected = make([]byte, 1024*256)
+)
+
+func init() {
+	for i := range expected {
+		expected[i] = byte(i)
 	}
 }

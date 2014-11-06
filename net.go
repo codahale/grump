@@ -7,6 +7,7 @@ import (
 	"crypto/sha512"
 	"encoding/binary"
 	"errors"
+	"hash"
 	"io"
 	"net"
 	"time"
@@ -75,8 +76,10 @@ func (l listener) Accept() (net.Conn, error) {
 	}
 
 	conn := conn{
-		buf:  bytes.NewBuffer(nil),
-		conn: c,
+		buf:      bytes.NewBuffer(nil),
+		conn:     c,
+		sent:     sha512.New(),
+		received: sha512.New(),
 	}
 	if err := conn.handshake(
 		l.pubKey,
@@ -112,8 +115,10 @@ func Dial(network, address string, privateKey, passphrase, publicKey, peerKey []
 		return nil, err
 	}
 	conn := conn{
-		buf:  bytes.NewBuffer(nil),
-		conn: c,
+		buf:      bytes.NewBuffer(nil),
+		conn:     c,
+		sent:     sha512.New(),
+		received: sha512.New(),
 	}
 
 	if err := conn.handshake(
@@ -130,6 +135,7 @@ type conn struct {
 	conn               net.Conn
 	buf                *bytes.Buffer
 	sending, receiving cipher.AEAD
+	sent, received     hash.Hash
 }
 
 func (c *conn) handshake(pubKey, signingKey, verifyingKey []byte) error {
@@ -212,6 +218,8 @@ func (c *conn) Read(p []byte) (int, error) {
 		return c.buf.Read(p)
 	}
 
+	ad := c.received.Sum(nil)
+
 	// if we don't have enough buffered, read a message
 	var msg pb.EncryptedData
 	if err := c.readMsg(&msg); err != nil {
@@ -219,7 +227,7 @@ func (c *conn) Read(p []byte) (int, error) {
 	}
 
 	// decrypt it
-	d, err := c.receiving.Open(nil, msg.Nonce, msg.Ciphertext, nil)
+	d, err := c.receiving.Open(nil, msg.Nonce, msg.Ciphertext, ad)
 	if err != nil {
 		// close the connection on tampering
 		_ = c.Close()
@@ -239,7 +247,7 @@ func (c *conn) Write(p []byte) (int, error) {
 		return 0, err
 	}
 
-	ctxt := c.sending.Seal(nil, nonce, p, nil)
+	ctxt := c.sending.Seal(nil, nonce, p, c.sent.Sum(nil))
 
 	return len(p), c.writeMsg(&pb.EncryptedData{
 		Nonce:      nonce,
@@ -290,6 +298,8 @@ func (c *conn) writeMsg(msg proto.Message) error {
 	binary.LittleEndian.PutUint32(buf, uint32(len(buf)-4))
 
 	_, err = c.conn.Write(buf)
+	_, _ = c.sent.Write(buf)
+
 	return err
 }
 
@@ -299,6 +309,7 @@ func (c *conn) readMsg(msg proto.Message) error {
 	if _, err := io.ReadFull(c.conn, buf); err != nil {
 		return err
 	}
+	_, _ = c.received.Write(buf)
 
 	// check frame size
 	n := int(binary.LittleEndian.Uint32(buf))
@@ -311,6 +322,7 @@ func (c *conn) readMsg(msg proto.Message) error {
 	if _, err := io.ReadFull(c.conn, buf); err != nil {
 		return err
 	}
+	_, _ = c.received.Write(buf)
 
 	return proto.Unmarshal(buf, msg)
 }
