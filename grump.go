@@ -9,14 +9,15 @@ import (
 	"math/big"
 	"os"
 
-	"golang.org/x/crypto/curve25519"
-	"golang.org/x/crypto/hkdf"
-	"golang.org/x/crypto/scrypt"
 	"code.google.com/p/goprotobuf/proto"
 	"github.com/agl/ed25519"
+	"github.com/agl/ed25519/extra25519"
 	"github.com/andrew-d/go-termutil"
 	"github.com/codahale/chacha20poly1305"
 	"github.com/codahale/grump/pb"
+	"golang.org/x/crypto/curve25519"
+	"golang.org/x/crypto/hkdf"
+	"golang.org/x/crypto/scrypt"
 )
 
 var (
@@ -43,26 +44,19 @@ const (
 // GenerateKeyPair creates a new Curve25519 key pair and encrypts the private
 // key with the given passphrase and scrypt parameters.
 func GenerateKeyPair(passphrase []byte, n, r, p uint) ([]byte, []byte, error) {
-	// generate Curve25519 keys
-	encryptingKey, decryptingKey, err := genCurve25519Keys()
-	if err != nil {
-		return nil, nil, err
-	}
-
 	// generate Ed25519 keys
-	verifyingKey, signingKey, err := genEd25519Keys()
+	pubKey, privKey, err := genEd25519Keys()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	privateKey, err := encryptPrivateKey(passphrase, decryptingKey, signingKey, n, r, p)
+	privateKey, err := encryptPrivateKey(passphrase, privKey, n, r, p)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	publicKey, err := proto.Marshal(&pb.PublicKey{
-		VerifyingKey:  verifyingKey,
-		EncryptingKey: encryptingKey,
+		Key: pubKey,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -74,12 +68,12 @@ func GenerateKeyPair(passphrase []byte, n, r, p uint) ([]byte, []byte, error) {
 // ChangePassphrase decrypts the given private key with the old passphrase and
 // re-encrypts it with the new passphrase.
 func ChangePassphrase(privateKey, oldPassphrase, newPassphrase []byte, n, r, p uint) ([]byte, error) {
-	decryptingKey, signingKey, err := decryptPrivateKey(oldPassphrase, privateKey)
+	privKey, err := decryptPrivateKey(oldPassphrase, privateKey)
 	if err != nil {
 		return nil, err
 	}
 
-	return encryptPrivateKey(newPassphrase, decryptingKey, signingKey, n, r, p)
+	return encryptPrivateKey(newPassphrase, privKey, n, r, p)
 }
 
 // Encrypt first decrypts the given private key with the given passphrase, then
@@ -93,7 +87,7 @@ func Encrypt(privateKey, passphrase []byte, recipients [][]byte, r io.Reader, w 
 	}
 
 	// decrypt the private key
-	decryptingKey, signingKey, err := decryptPrivateKey(passphrase, privateKey)
+	privKey, err := decryptPrivateKey(passphrase, privateKey)
 	if err != nil {
 		return err
 	}
@@ -106,7 +100,7 @@ func Encrypt(privateKey, passphrase []byte, recipients [][]byte, r io.Reader, w 
 	aead, _ := chacha20poly1305.New(messageKey)
 
 	// encrypt the message key for all recipients
-	header, err := encryptMessageKey(decryptingKey, messageKey, recipients)
+	header, err := encryptMessageKey(privKey, messageKey, recipients)
 	if err != nil {
 		return err
 	}
@@ -146,7 +140,7 @@ func Encrypt(privateKey, passphrase []byte, recipients [][]byte, r io.Reader, w 
 	}
 
 	// write the signature
-	sig := ed25519Sign(signingKey, fw.digest())
+	sig := ed25519Sign(privKey, fw.digest())
 	return fw.writeMessage(&pb.Signature{
 		Signature: sig,
 	})
@@ -168,7 +162,7 @@ func Decrypt(privateKey, passphrase, sender []byte, r io.Reader, w io.Writer) er
 	}
 
 	// decrypt the private key
-	decryptingKey, _, err := decryptPrivateKey(passphrase, privateKey)
+	privKey, err := decryptPrivateKey(passphrase, privateKey)
 	if err != nil {
 		return err
 	}
@@ -178,9 +172,7 @@ func Decrypt(privateKey, passphrase, sender []byte, r io.Reader, w io.Writer) er
 	if err := fr.readMessage(&header); err != nil {
 		return err
 	}
-	messageKey, err := decryptMessageKey(
-		decryptingKey, pubKey.EncryptingKey, &header,
-	)
+	messageKey, err := decryptMessageKey(privKey, pubKey.Key, &header)
 	if err != nil {
 		return err
 	}
@@ -231,7 +223,7 @@ func Decrypt(privateKey, passphrase, sender []byte, r io.Reader, w io.Writer) er
 	}
 
 	// verify the signature
-	if !ed25519Verify(pubKey.VerifyingKey, digest, sig.Signature) {
+	if !ed25519Verify(pubKey.Key, digest, sig.Signature) {
 		return ErrBadSignature
 	}
 
@@ -240,9 +232,9 @@ func Decrypt(privateKey, passphrase, sender []byte, r io.Reader, w io.Writer) er
 
 // Sign first decrypts the private key with the given passphrase, then uses it
 // to create a Ed25519 signature of the given data.
-func Sign(privKey, passphrase []byte, r io.Reader, w io.Writer) error {
+func Sign(privateKey, passphrase []byte, r io.Reader, w io.Writer) error {
 	// decrypt the private key
-	_, signingKey, err := decryptPrivateKey(passphrase, privKey)
+	privKey, err := decryptPrivateKey(passphrase, privateKey)
 	if err != nil {
 		return err
 	}
@@ -255,7 +247,7 @@ func Sign(privKey, passphrase []byte, r io.Reader, w io.Writer) error {
 
 	// sign the data and encode the signature
 	buf, err := proto.Marshal(&pb.Signature{
-		Signature: ed25519Sign(signingKey, h.Sum(nil)),
+		Signature: ed25519Sign(privKey, h.Sum(nil)),
 	})
 	if err != nil {
 		return err
@@ -288,7 +280,7 @@ func Verify(publicKey, signature []byte, r io.Reader) error {
 	}
 
 	// verify the signature
-	if !ed25519Verify(pubKey.VerifyingKey, h.Sum(nil), sig.Signature) {
+	if !ed25519Verify(pubKey.Key, h.Sum(nil), sig.Signature) {
 		return ErrBadSignature
 	}
 	return nil
@@ -303,13 +295,12 @@ func ReadPassphrase(interactive bool, prompt string) ([]byte, error) {
 	return ioutil.ReadAll(os.Stdin)
 }
 
-// decryptPrivateKey decodes and decrypts the given private key, returning the
-// decrypting key and the signing key.
-func decryptPrivateKey(passphrase, pubKey []byte) ([]byte, []byte, error) {
+// decryptPrivateKey decodes and decrypts the given private key.
+func decryptPrivateKey(passphrase, privKey []byte) ([]byte, error) {
 	// decode the protobuf
 	var pk pb.PrivateKey
-	if err := proto.Unmarshal(pubKey, &pk); err != nil {
-		return nil, nil, err
+	if err := proto.Unmarshal(privKey, &pk); err != nil {
+		return nil, err
 	}
 
 	// generate the key
@@ -322,34 +313,26 @@ func decryptPrivateKey(passphrase, pubKey []byte) ([]byte, []byte, error) {
 		chacha20poly1305.KeySize,
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	aead, err := chacha20poly1305.New(key)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	// decrypt the decrypting key
-	k := pk.DecryptingKey
-	decryptingKey, err := aead.Open(nil, k.Nonce, k.Ciphertext, nil)
+	// decrypt the private key
+	privateKey, err := aead.Open(nil, pk.Key.Nonce, pk.Key.Ciphertext, nil)
 	if err != nil {
-		return nil, nil, ErrBadPassphrase
+		return nil, ErrBadPassphrase
 	}
 
-	// decrypt the signing key
-	k = pk.SigningKey
-	signingKey, err := aead.Open(nil, k.Nonce, k.Ciphertext, nil)
-	if err != nil {
-		return nil, nil, ErrBadPassphrase
-	}
-
-	return decryptingKey, signingKey, nil
+	return privateKey, nil
 }
 
 // encryptMessageKey returns a header with encrypted copies of the message key
 // for each recipient. Any recipient slices which are nil will be replaced with
 // fake recipients.
-func encryptMessageKey(decryptingKey, messageKey []byte, recipients [][]byte) (*pb.Header, error) {
+func encryptMessageKey(privKey, messageKey []byte, recipients [][]byte) (*pb.Header, error) {
 	recipients, err := secureShuffle(recipients)
 	if err != nil {
 		return nil, err
@@ -370,7 +353,7 @@ func encryptMessageKey(decryptingKey, messageKey []byte, recipients [][]byte) (*
 			if err := proto.Unmarshal(buf, &pubKey); err != nil {
 				return nil, err
 			}
-			key = sharedSecret(decryptingKey, pubKey.EncryptingKey)
+			key = sharedSecret(privKey, pubKey.Key)
 
 		}
 		aead, _ := chacha20poly1305.New(key)
@@ -393,8 +376,8 @@ func encryptMessageKey(decryptingKey, messageKey []byte, recipients [][]byte) (*
 
 // decryptMessageKey decrypts the message key by trying all the encrypted keys
 // in a header.
-func decryptMessageKey(decryptingKey []byte, encryptingKey []byte, header *pb.Header) ([]byte, error) {
-	key := sharedSecret(decryptingKey, encryptingKey)
+func decryptMessageKey(privKey, pubKey []byte, header *pb.Header) ([]byte, error) {
+	key := sharedSecret(privKey, pubKey)
 	aead, _ := chacha20poly1305.New(key)
 	for _, k := range header.Keys {
 		key, err := aead.Open(nil, k.Nonce, k.Ciphertext, nil)
@@ -407,12 +390,19 @@ func decryptMessageKey(decryptingKey []byte, encryptingKey []byte, header *pb.He
 
 // sharedSecret returns a 256-bit key from the HKDF-SHA-512 output of the
 // Curve25519 ECDH shared secret for the two keys.
-func sharedSecret(decryptingKey []byte, encryptingKey []byte) []byte {
+func sharedSecret(privKey, pubKey []byte) []byte {
+	var edPrivKey [64]byte
+	var edPubKey [32]byte
+	copy(edPrivKey[:], privKey)
+	copy(edPubKey[:], pubKey)
+
+	// convert to Curve25519 keys
+	var cpPrivKey, cpPubKey, sharedKey [32]byte
+	extra25519.PrivateKeyToCurve25519(&cpPrivKey, &edPrivKey)
+	extra25519.PublicKeyToCurve25519(&cpPubKey, &edPubKey)
+
 	// perform Curve25519 ECDH
-	var privKey, pubKey, sharedKey [32]byte
-	copy(privKey[:], decryptingKey)
-	copy(pubKey[:], encryptingKey)
-	curve25519.ScalarMult(&sharedKey, &privKey, &pubKey)
+	curve25519.ScalarMult(&sharedKey, &cpPrivKey, &cpPubKey)
 
 	key := make([]byte, chacha20poly1305.KeySize)
 	kdf := hkdf.New(sha512.New, sharedKey[:], nil, nil)
@@ -421,28 +411,21 @@ func sharedSecret(decryptingKey []byte, encryptingKey []byte) []byte {
 }
 
 // encryptPrivateKey creates an encrypted version of the given private key.
-func encryptPrivateKey(passphrase, decryptingKey, signingKey []byte, n, r, p uint) ([]byte, error) {
+func encryptPrivateKey(passphrase, privKey []byte, n, r, p uint) ([]byte, error) {
 	// derive the symmetric key from the passphrase
 	salt := make([]byte, 32) // 256-bit salt
 	if _, err := rand.Read(salt); err != nil {
 		return nil, err
 	}
-	key, _ := scrypt.Key(passphrase, salt, 1<<n, int(r), int(p), chacha20poly1305.KeySize)
+	key, _ := scrypt.Key(passphrase, salt, 1<<n, int(r), int(p), 32)
 	aead, _ := chacha20poly1305.New(key)
 
-	// encrypt the decrypting key
-	decNonce := make([]byte, aead.NonceSize())
-	if _, err := rand.Read(decNonce); err != nil {
+	// encrypt the private key
+	nonce := make([]byte, aead.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
 		return nil, err
 	}
-	encDecryptingKey := aead.Seal(nil, decNonce, decryptingKey, nil)
-
-	// encrypt the signing key
-	sigNonce := make([]byte, aead.NonceSize())
-	if _, err := rand.Read(sigNonce); err != nil {
-		return nil, err
-	}
-	encSigningKey := aead.Seal(nil, sigNonce, signingKey, nil)
+	encryptedKey := aead.Seal(nil, nonce, privKey, nil)
 
 	// serialize the private key
 	return proto.Marshal(&pb.PrivateKey{
@@ -450,25 +433,11 @@ func encryptPrivateKey(passphrase, decryptingKey, signingKey []byte, n, r, p uin
 		R:    proto.Uint64(uint64(r)),
 		P:    proto.Uint64(uint64(p)),
 		Salt: salt,
-		DecryptingKey: &pb.EncryptedData{
-			Nonce:      decNonce,
-			Ciphertext: encDecryptingKey,
-		},
-		SigningKey: &pb.EncryptedData{
-			Nonce:      sigNonce,
-			Ciphertext: encSigningKey,
+		Key: &pb.EncryptedData{
+			Nonce:      nonce,
+			Ciphertext: encryptedKey,
 		},
 	})
-}
-
-// genCurve25519Keys generates a Curve25519 key pair.
-func genCurve25519Keys() ([]byte, []byte, error) {
-	var pubKey, privKey [32]byte
-	if _, err := rand.Read(privKey[:]); err != nil {
-		return nil, nil, err
-	}
-	curve25519.ScalarBaseMult(&pubKey, &privKey)
-	return pubKey[:], privKey[:], nil
 }
 
 // genEd25519Keys generates an Ed25519 key pair.
@@ -478,21 +447,21 @@ func genEd25519Keys() ([]byte, []byte, error) {
 }
 
 // ed25519Sign creates an Ed25519 signature of a given hash.
-func ed25519Sign(signingKey, hash []byte) []byte {
-	var privKey [ed25519.PrivateKeySize]byte
-	copy(privKey[:], signingKey)
-	return ed25519.Sign(&privKey, hash)[:]
+func ed25519Sign(privKey, hash []byte) []byte {
+	var k [ed25519.PrivateKeySize]byte
+	copy(k[:], privKey)
+	return ed25519.Sign(&k, hash)[:]
 }
 
 // ed25519Verify verifies an Ed25519 signature of a given hash.
-func ed25519Verify(verifyingKey, hash, sig []byte) bool {
-	var pubKey [ed25519.PublicKeySize]byte
-	copy(pubKey[:], verifyingKey)
+func ed25519Verify(pubKey, hash, sig []byte) bool {
+	var k [ed25519.PublicKeySize]byte
+	copy(k[:], pubKey)
 
 	var s [ed25519.SignatureSize]byte
 	copy(s[:], sig)
 
-	return ed25519.Verify(&pubKey, hash, &s)
+	return ed25519.Verify(&k, hash, &s)
 }
 
 // secureShuffle returns the given keys in random order.

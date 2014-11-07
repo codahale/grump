@@ -16,9 +16,9 @@ import (
 	"github.com/codahale/chacha20poly1305"
 	"github.com/codahale/grump/pb"
 
+	"code.google.com/p/goprotobuf/proto"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/hkdf"
-	"code.google.com/p/goprotobuf/proto"
 )
 
 // Listen announces on the local network address laddr, using the given key pair
@@ -39,7 +39,7 @@ func Listen(network, address string, privateKey, passphrase, publicKey, peerKey 
 		return nil, err
 	}
 
-	_, signingKey, err := decryptPrivateKey(passphrase, privateKey)
+	privKey, err := decryptPrivateKey(passphrase, privateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -49,16 +49,16 @@ func Listen(network, address string, privateKey, passphrase, publicKey, peerKey 
 		return nil, err
 	}
 	return &listener{
-		listener:     l,
-		pubKey:       pubKey.VerifyingKey,
-		signingKey:   signingKey,
-		verifyingKey: prKey.VerifyingKey,
+		listener:   l,
+		pubKey:     pubKey.Key,
+		privKey:    privKey,
+		peerPubKey: prKey.Key,
 	}, nil
 }
 
 type listener struct {
-	listener                         net.Listener
-	pubKey, signingKey, verifyingKey []byte
+	listener                    net.Listener
+	peerPubKey, pubKey, privKey []byte
 }
 
 func (l listener) Addr() net.Addr {
@@ -82,9 +82,9 @@ func (l listener) Accept() (net.Conn, error) {
 		received: sha512.New(),
 	}
 	if err := conn.handshake(
+		l.peerPubKey,
+		l.privKey,
 		l.pubKey,
-		l.signingKey,
-		l.verifyingKey,
 	); err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func Dial(network, address string, privateKey, passphrase, publicKey, peerKey []
 		return nil, err
 	}
 
-	_, signingKey, err := decryptPrivateKey(passphrase, privateKey)
+	privKey, err := decryptPrivateKey(passphrase, privateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -122,9 +122,9 @@ func Dial(network, address string, privateKey, passphrase, publicKey, peerKey []
 	}
 
 	if err := conn.handshake(
-		pubKey.VerifyingKey,
-		signingKey,
-		prKey.VerifyingKey,
+		prKey.Key,
+		privKey,
+		pubKey.Key,
 	); err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ type conn struct {
 	sent, received     hash.Hash
 }
 
-func (c *conn) handshake(pubKey, signingKey, verifyingKey []byte) error {
+func (c *conn) handshake(peerPubKey, privKey, pubKey []byte) error {
 	// generate a random nonce
 	nonce := make([]byte, 32)
 	if _, err := rand.Read(nonce); err != nil {
@@ -167,7 +167,7 @@ func (c *conn) handshake(pubKey, signingKey, verifyingKey []byte) error {
 	curve25519.ScalarBaseMult(&y, &x)
 
 	// create signature of both ECDH presecret and peer nonce
-	sig := ed25519Sign(signingKey, append(peerNonce, y[:]...))
+	sig := ed25519Sign(privKey, append(peerNonce, y[:]...))
 
 	// send it as second part of handshake
 	if err := c.writeHandshakeB(y[:], sig); err != nil {
@@ -181,7 +181,7 @@ func (c *conn) handshake(pubKey, signingKey, verifyingKey []byte) error {
 	}
 
 	// verify the signature of the peer's point and our nonce
-	if !ed25519Verify(verifyingKey, append(nonce, peerY[:]...), peerSig) {
+	if !ed25519Verify(peerPubKey, append(nonce, peerY[:]...), peerSig) {
 		return errors.New("bad handshake")
 	}
 
@@ -195,7 +195,7 @@ func (c *conn) handshake(pubKey, signingKey, verifyingKey []byte) error {
 
 	// sending key is derived from the shared secret w/ HKDF-SHA512 using the
 	// peer's public key as the label
-	sR := hkdf.New(sha512.New, secret[:], nil, verifyingKey)
+	sR := hkdf.New(sha512.New, secret[:], nil, peerPubKey)
 	if _, err := io.ReadFull(sR, sendingKey); err != nil {
 		return err
 	}

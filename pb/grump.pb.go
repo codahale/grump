@@ -101,8 +101,7 @@ func (m *Signature) GetSignature() []byte {
 
 // Public keys are stored in the clear.
 type PublicKey struct {
-	EncryptingKey    []byte `protobuf:"bytes,1,req,name=encryptingKey" json:"encryptingKey,omitempty"`
-	VerifyingKey     []byte `protobuf:"bytes,2,req,name=verifyingKey" json:"verifyingKey,omitempty"`
+	Key              []byte `protobuf:"bytes,1,req,name=key" json:"key,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
 
@@ -110,16 +109,9 @@ func (m *PublicKey) Reset()         { *m = PublicKey{} }
 func (m *PublicKey) String() string { return proto.CompactTextString(m) }
 func (*PublicKey) ProtoMessage()    {}
 
-func (m *PublicKey) GetEncryptingKey() []byte {
+func (m *PublicKey) GetKey() []byte {
 	if m != nil {
-		return m.EncryptingKey
-	}
-	return nil
-}
-
-func (m *PublicKey) GetVerifyingKey() []byte {
-	if m != nil {
-		return m.VerifyingKey
+		return m.Key
 	}
 	return nil
 }
@@ -131,8 +123,7 @@ type PrivateKey struct {
 	R                *uint64        `protobuf:"varint,2,req,name=r" json:"r,omitempty"`
 	P                *uint64        `protobuf:"varint,3,req,name=p" json:"p,omitempty"`
 	Salt             []byte         `protobuf:"bytes,4,req,name=salt" json:"salt,omitempty"`
-	DecryptingKey    *EncryptedData `protobuf:"bytes,5,req,name=decryptingKey" json:"decryptingKey,omitempty"`
-	SigningKey       *EncryptedData `protobuf:"bytes,6,req,name=signingKey" json:"signingKey,omitempty"`
+	Key              *EncryptedData `protobuf:"bytes,5,req,name=key" json:"key,omitempty"`
 	XXX_unrecognized []byte         `json:"-"`
 }
 
@@ -168,16 +159,9 @@ func (m *PrivateKey) GetSalt() []byte {
 	return nil
 }
 
-func (m *PrivateKey) GetDecryptingKey() *EncryptedData {
+func (m *PrivateKey) GetKey() *EncryptedData {
 	if m != nil {
-		return m.DecryptingKey
-	}
-	return nil
-}
-
-func (m *PrivateKey) GetSigningKey() *EncryptedData {
-	if m != nil {
-		return m.SigningKey
+		return m.Key
 	}
 	return nil
 }

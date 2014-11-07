@@ -31,19 +31,17 @@ message Signature {
 
 // Public keys are stored in the clear.
 message PublicKey {
-  required bytes encryptingKey = 1; // Curve25519 key
-  required bytes verifyingKey  = 2; // Ed25519 key
+  required bytes key = 1; // Ed25519 key
 }
 
 // Private keys are stored encrypted with a key derived via scrypt from a
 // passphrase.
 message PrivateKey {
-  required uint64                     N = 1; // the scrypt parameters
-  required uint64                     r = 2;
-  required uint64                     p = 3;
-  required bytes                   salt = 4;
-  required EncryptedData  decryptingKey = 5; // Curve25519 key
-  required EncryptedData  signingKey    = 6; // Ed25519 key
+  required uint64           N = 1; // the scrypt parameters
+  required uint64           r = 2;
+  required uint64           p = 3;
+  required bytes         salt = 4;
+  required EncryptedData  key = 5; // Ed25519 key
 }
 
 // Data encrypted with ChaCha290Poly1305.
