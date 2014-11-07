@@ -1,20 +1,10 @@
 {
 	"ImportPath": "github.com/codahale/grump",
-	"GoVersion": "go1.3.2",
+	"GoVersion": "go1.3.3",
 	"Packages": [
 		"./..."
 	],
 	"Deps": [
-		{
-			"ImportPath": "code.google.com/p/go.crypto/curve25519",
-			"Comment": "null-223",
-			"Rev": "31393df5baea9ed8d6778396e7f3896070ea5c04"
-		},
-		{
-			"ImportPath": "code.google.com/p/go.crypto/hkdf",
-			"Comment": "null-223",
-			"Rev": "31393df5baea9ed8d6778396e7f3896070ea5c04"
-		},
 		{
 			"ImportPath": "code.google.com/p/go.crypto/pbkdf2",
 			"Comment": "null-223",
@@ -22,11 +12,6 @@
 		},
 		{
 			"ImportPath": "code.google.com/p/go.crypto/poly1305",
-			"Comment": "null-223",
-			"Rev": "31393df5baea9ed8d6778396e7f3896070ea5c04"
-		},
-		{
-			"ImportPath": "code.google.com/p/go.crypto/scrypt",
 			"Comment": "null-223",
 			"Rev": "31393df5baea9ed8d6778396e7f3896070ea5c04"
 		},
@@ -55,6 +40,21 @@
 			"ImportPath": "github.com/docopt/docopt-go",
 			"Comment": "0.6.1-1-gc5dac53",
 			"Rev": "c5dac536301992c0371c6115d998fb62944bfad3"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/curve25519",
+			"Comment": "null-231",
+			"Rev": "88f995681294397936c136182f54e1f6891db323"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/hkdf",
+			"Comment": "null-231",
+			"Rev": "88f995681294397936c136182f54e1f6891db323"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/scrypt",
+			"Comment": "null-231",
+			"Rev": "88f995681294397936c136182f54e1f6891db323"
 		}
 	]
 }

@@ -38,7 +38,7 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"code.google.com/p/go.crypto/poly1305"
+	"golang.org/x/crypto/poly1305"
 	"github.com/codahale/chacha20"
 )
 

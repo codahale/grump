@@ -9,9 +9,9 @@ import (
 	"math/big"
 	"os"
 
-	"code.google.com/p/go.crypto/curve25519"
-	"code.google.com/p/go.crypto/hkdf"
-	"code.google.com/p/go.crypto/scrypt"
+	"golang.org/x/crypto/curve25519"
+	"golang.org/x/crypto/hkdf"
+	"golang.org/x/crypto/scrypt"
 	"code.google.com/p/goprotobuf/proto"
 	"github.com/agl/ed25519"
 	"github.com/andrew-d/go-termutil"
