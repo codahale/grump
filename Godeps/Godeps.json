@@ -34,7 +34,7 @@
 		},
 		{
 			"ImportPath": "github.com/codahale/chacha20poly1305",
-			"Rev": "46e3ddf6ad47ca973af5f63efd0cf79385c831f0"
+			"Rev": "01702a6697d6bbb41232dcb15b8d08fb8ee8205c"
 		},
 		{
 			"ImportPath": "github.com/docopt/docopt-go",

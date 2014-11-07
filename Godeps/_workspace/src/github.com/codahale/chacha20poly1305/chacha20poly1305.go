@@ -38,8 +38,8 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"golang.org/x/crypto/poly1305"
 	"github.com/codahale/chacha20"
+	"golang.org/x/crypto/poly1305"
 )
 
 var (
