@@ -261,7 +261,7 @@ func BenchmarkGenerateKeyPair(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		GenerateKeyPair([]byte("woo"), 1<<20, 8, 1)
+		GenerateKeyPair([]byte("woo"), 20, 8, 1)
 	}
 }
 
