@@ -41,8 +41,8 @@ const (
 	MaxFrameSize = 1024 * 1024 * 10
 )
 
-// GenerateKeyPair creates a new Curve25519 key pair and encrypts the private
-// key with the given passphrase and scrypt parameters.
+// GenerateKeyPair creates a new Ed25519 key pair and encrypts the private key
+// with the given passphrase and scrypt parameters.
 func GenerateKeyPair(passphrase []byte, n, r, p uint) ([]byte, []byte, error) {
 	// generate Ed25519 keys
 	pubKey, privKey, err := genEd25519Keys()
@@ -388,20 +388,20 @@ func decryptMessageKey(privKey, pubKey []byte, header *pb.Header) ([]byte, error
 	return nil, ErrNotDecryptable
 }
 
-// sharedSecret returns a 256-bit key from the HKDF-SHA-512 output of the
-// Curve25519 ECDH shared secret for the two keys.
+// sharedSecret returns a 256-bit key from the HKDF-SHA-512 output of the X25519
+// shared secret for the two keys.
 func sharedSecret(privKey, pubKey []byte) []byte {
 	var edPrivKey [64]byte
 	var edPubKey [32]byte
 	copy(edPrivKey[:], privKey)
 	copy(edPubKey[:], pubKey)
 
-	// convert to Curve25519 keys
+	// convert to X25519 keys
 	var cpPrivKey, cpPubKey, sharedKey [32]byte
 	extra25519.PrivateKeyToCurve25519(&cpPrivKey, &edPrivKey)
 	extra25519.PublicKeyToCurve25519(&cpPubKey, &edPubKey)
 
-	// perform Curve25519 ECDH
+	// perform X25519 ECDH
 	curve25519.ScalarMult(&sharedKey, &cpPrivKey, &cpPubKey)
 
 	key := make([]byte, chacha20poly1305.KeySize)
