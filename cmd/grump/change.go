@@ -12,12 +12,12 @@ func change(n, r, p uint, privKeyFilename string) {
 		die(err)
 	}
 
-	oldPass, err := grump.ReadPassphrase(true, "Old passphrase: ")
+	oldPass, err := grump.ReadPassphrase(true, "Old passphrase")
 	if err != nil {
 		die(err)
 	}
 
-	newPass, err := grump.ReadPassphrase(true, "New passphrase: ")
+	newPass, err := grump.ReadPassphrase(true, "New passphrase")
 	if err != nil {
 		die(err)
 	}

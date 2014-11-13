@@ -9,7 +9,7 @@ import (
 
 func decrypt(pubKeyFilename, privKeyFilename, inFilename, outFilename string, batch bool) {
 
-	passphrase, err := grump.ReadPassphrase(!batch, "Passphrase: ")
+	passphrase, err := grump.ReadPassphrase(!batch, "Passphrase")
 	if err != nil {
 		die(err)
 	}

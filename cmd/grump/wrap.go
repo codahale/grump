@@ -11,7 +11,7 @@ import (
 
 func wrap(pubKeyFilename, privKeyFilename, peerKeyFilename, listenAddr, connectAddr string, batch bool) {
 
-	passphrase, err := grump.ReadPassphrase(!batch, "Passphrase: ")
+	passphrase, err := grump.ReadPassphrase(!batch, "Passphrase")
 	if err != nil {
 		die(err)
 	}

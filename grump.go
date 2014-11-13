@@ -10,9 +10,9 @@ import (
 	"os"
 
 	"code.google.com/p/goprotobuf/proto"
+	"github.com/Bowery/prompt"
 	"github.com/agl/ed25519"
 	"github.com/agl/ed25519/extra25519"
-	"github.com/andrew-d/go-termutil"
 	"github.com/codahale/chacha20poly1305"
 	"github.com/codahale/grump/pb"
 	"golang.org/x/crypto/curve25519"
@@ -288,9 +288,10 @@ func Verify(publicKey, signature []byte, r io.Reader) error {
 
 // ReadPassphrase either prompts interactively for the passphrase or reads it
 // from stdin.
-func ReadPassphrase(interactive bool, prompt string) ([]byte, error) {
+func ReadPassphrase(interactive bool, prefix string) ([]byte, error) {
 	if interactive {
-		return termutil.GetPass(prompt, os.Stderr.Fd(), os.Stdin.Fd())
+		p, err := prompt.Password(prefix)
+		return []byte(p), err
 	}
 	return ioutil.ReadAll(os.Stdin)
 }

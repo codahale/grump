@@ -7,7 +7,7 @@ import (
 )
 
 func generate(n, r, p uint, pubKeyFilename, privKeyFilename string, batch bool) {
-	passphrase, err := grump.ReadPassphrase(!batch, "Passphrase: ")
+	passphrase, err := grump.ReadPassphrase(!batch, "Passphrase")
 	if err != nil {
 		die(err)
 	}
