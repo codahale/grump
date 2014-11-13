@@ -16,12 +16,12 @@
 			"Rev": "36be16571e14f67e114bb0af619e5de2c1591679"
 		},
 		{
-			"ImportPath": "github.com/agl/ed25519",
-			"Rev": "d2b94fd789ea21d12fac1a4443dd3a3f79cda72c"
+			"ImportPath": "github.com/Bowery/prompt",
+			"Rev": "9904a3059a0f2348b8e1f5066ecc9f18951d8600"
 		},
 		{
-			"ImportPath": "github.com/andrew-d/go-termutil",
-			"Rev": "91702f30b7f6d63f574b486457bae6acb1534dce"
+			"ImportPath": "github.com/agl/ed25519",
+			"Rev": "d2b94fd789ea21d12fac1a4443dd3a3f79cda72c"
 		},
 		{
 			"ImportPath": "github.com/codahale/chacha20",
