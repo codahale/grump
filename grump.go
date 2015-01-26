@@ -122,10 +122,8 @@ func Encrypt(privateKey, passphrase []byte, recipients [][]byte, r io.Reader, w 
 			return err
 		}
 
-		// generate a nonce
-		if _, err := rand.Read(nonce); err != nil {
-			return err
-		}
+		// increment the nonce
+		inc(nonce)
 
 		// write the encrypted packet
 		if err := fw.writeMessage(&pb.Packet{
@@ -480,4 +478,14 @@ func secureShuffle(keys [][]byte) ([][]byte, error) {
 	}
 
 	return k, nil
+}
+
+// inc increments the given nonce.
+func inc(nonce []byte) {
+	for i := range nonce {
+		nonce[i]++
+		if nonce[i] != 0 {
+			return
+		}
+	}
 }

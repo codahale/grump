@@ -257,6 +257,18 @@ func TestSignAndVerifyBadMessage(t *testing.T) {
 	}
 }
 
+func TestInc(t *testing.T) {
+	nonce := make([]byte, 4)
+	for i := 0; i < 1000; i++ {
+		inc(nonce)
+	}
+
+	expected := []byte{232, 3, 0, 0}
+	if !bytes.Equal(nonce, expected) {
+		t.Errorf("Was %v but expected %v", nonce, expected)
+	}
+}
+
 func BenchmarkGenerateKeyPair(b *testing.B) {
 	b.ReportAllocs()
 
