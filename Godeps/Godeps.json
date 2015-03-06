@@ -20,7 +20,7 @@
 		},
 		{
 			"ImportPath": "github.com/codahale/chacha20",
-			"Rev": "a211622bdf66c0a0ca843047ec1c2698c56e7827"
+			"Rev": "7be6a955b0468becb6aaa609b484b52fbf355b76"
 		},
 		{
 			"ImportPath": "github.com/codahale/chacha20poly1305",
