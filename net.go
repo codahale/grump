@@ -15,8 +15,7 @@ import (
 	"github.com/codahale/chacha20"
 	"github.com/codahale/chacha20poly1305"
 	"github.com/codahale/grump/pb"
-
-	"code.google.com/p/goprotobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/hkdf"
 )

@@ -9,12 +9,12 @@ import (
 	"math/big"
 	"os"
 
-	"code.google.com/p/goprotobuf/proto"
 	"github.com/Bowery/prompt"
 	"github.com/agl/ed25519"
 	"github.com/agl/ed25519/extra25519"
 	"github.com/codahale/chacha20poly1305"
 	"github.com/codahale/grump/pb"
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/hkdf"
 	"golang.org/x/crypto/scrypt"
@@ -131,7 +131,7 @@ func Encrypt(privateKey, passphrase []byte, recipients [][]byte, r io.Reader, w 
 				Nonce:      nonce,
 				Ciphertext: aead.Seal(nil, nonce, plaintext[:n], fw.digest()),
 			},
-			Last: proto.Bool(done),
+			Last: done,
 		}); err != nil {
 			return err
 		}
@@ -206,7 +206,7 @@ func Decrypt(privateKey, passphrase, sender []byte, r io.Reader, w io.Writer) er
 		}
 
 		// and break if it's the last packet
-		if packet.GetLast() {
+		if packet.Last {
 			break
 		}
 	}
@@ -306,9 +306,9 @@ func decryptPrivateKey(passphrase, privKey []byte) ([]byte, error) {
 	key, err := scrypt.Key(
 		passphrase,
 		pk.Salt,
-		int(pk.GetN()),
-		int(pk.GetR()),
-		int(pk.GetP()),
+		int(pk.N),
+		int(pk.R),
+		int(pk.P),
 		chacha20poly1305.KeySize,
 	)
 	if err != nil {
@@ -428,9 +428,9 @@ func encryptPrivateKey(passphrase, privKey []byte, n, r, p uint) ([]byte, error)
 
 	// serialize the private key
 	return proto.Marshal(&pb.PrivateKey{
-		N:    proto.Uint64(uint64(1 << n)),
-		R:    proto.Uint64(uint64(r)),
-		P:    proto.Uint64(uint64(p)),
+		N:    uint64(1 << n),
+		R:    uint64(r),
+		P:    uint64(p),
 		Salt: salt,
 		Key: &pb.EncryptedData{
 			Nonce:      nonce,

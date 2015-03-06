@@ -1,3 +1,5 @@
+syntax = "proto3";
+
 package pb;
 
 // The header is the first structure in a Grump message, and contains a set of
@@ -19,44 +21,44 @@ message Header {
 // original message, encrypted with the message key, and using the SHA-512 hash
 // of all the bytes in the message which precede it as the authenticated data.
 message Packet {
-  required EncryptedData data = 1;
-  required bool          last = 2;
+  EncryptedData data = 1;
+  bool          last = 2;
 }
 
 // The final part of a message is the Ed25519 signature of the SHA-512 hash of
 // all bytes in the message which precede the signature's frame.
 message Signature {
-  required bytes signature = 1;
+  bytes signature = 1;
 }
 
 // Public keys are stored in the clear.
 message PublicKey {
-  required bytes key = 1; // Ed25519 key
+  bytes key = 1; // Ed25519 key
 }
 
 // Private keys are stored encrypted with a key derived via scrypt from a
 // passphrase.
 message PrivateKey {
-  required uint64           N = 1; // the scrypt parameters
-  required uint64           r = 2;
-  required uint64           p = 3;
-  required bytes         salt = 4;
-  required EncryptedData  key = 5; // Ed25519 key
+  uint64           N = 1; // the scrypt parameters
+  uint64           r = 2;
+  uint64           p = 3;
+  bytes         salt = 4;
+  EncryptedData  key = 5; // Ed25519 key
 }
 
 // Data encrypted with ChaCha290Poly1305.
 message EncryptedData {
-  required bytes nonce      = 1; // a random nonce
-  required bytes ciphertext = 2; // the ciphertext, including Poly1305 tag
+  bytes nonce      = 1; // a random nonce
+  bytes ciphertext = 2; // the ciphertext, including Poly1305 tag
 }
 
 // The first half of a handshake.
 message HandshakeA {
-  required bytes nonce = 1; // a random nonce
+  bytes nonce = 1; // a random nonce
 }
 
 // The second half of a handshake.
 message HandshakeB {
-  required bytes presecret = 1; // ECDH presecret
-  required bytes signature = 2; // Ed25519 signature of presecret and nonce
+  bytes presecret = 1; // ECDH presecret
+  bytes signature = 2; // Ed25519 signature of presecret and nonce
 }

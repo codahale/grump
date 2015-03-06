@@ -20,12 +20,10 @@ It has these top-level messages:
 */
 package pb
 
-import proto "code.google.com/p/goprotobuf/proto"
-import math "math"
+import proto "github.com/golang/protobuf/proto"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
-var _ = math.Inf
 
 // The header is the first structure in a Grump message, and contains a set of
 // encrypted copies of the message key.
@@ -39,8 +37,7 @@ type Header struct {
 	// session key, the recipients must iterate through the keys and try
 	// decrypting each of them. Unused, random keys may be added to this set to
 	// confound additional metadata analysis.
-	Keys             []*EncryptedData `protobuf:"bytes,1,rep,name=keys" json:"keys,omitempty"`
-	XXX_unrecognized []byte           `json:"-"`
+	Keys []*EncryptedData `protobuf:"bytes,1,rep,name=keys" json:"keys,omitempty"`
 }
 
 func (m *Header) Reset()         { *m = Header{} }
@@ -58,9 +55,8 @@ func (m *Header) GetKeys() []*EncryptedData {
 // original message, encrypted with the message key, and using the SHA-512 hash
 // of all the bytes in the message which precede it as the authenticated data.
 type Packet struct {
-	Data             *EncryptedData `protobuf:"bytes,1,req,name=data" json:"data,omitempty"`
-	Last             *bool          `protobuf:"varint,2,req,name=last" json:"last,omitempty"`
-	XXX_unrecognized []byte         `json:"-"`
+	Data *EncryptedData `protobuf:"bytes,1,opt,name=data" json:"data,omitempty"`
+	Last bool           `protobuf:"varint,2,opt,name=last" json:"last,omitempty"`
 }
 
 func (m *Packet) Reset()         { *m = Packet{} }
@@ -74,90 +70,38 @@ func (m *Packet) GetData() *EncryptedData {
 	return nil
 }
 
-func (m *Packet) GetLast() bool {
-	if m != nil && m.Last != nil {
-		return *m.Last
-	}
-	return false
-}
-
 // The final part of a message is the Ed25519 signature of the SHA-512 hash of
 // all bytes in the message which precede the signature's frame.
 type Signature struct {
-	Signature        []byte `protobuf:"bytes,1,req,name=signature" json:"signature,omitempty"`
-	XXX_unrecognized []byte `json:"-"`
+	Signature []byte `protobuf:"bytes,1,opt,name=signature,proto3" json:"signature,omitempty"`
 }
 
 func (m *Signature) Reset()         { *m = Signature{} }
 func (m *Signature) String() string { return proto.CompactTextString(m) }
 func (*Signature) ProtoMessage()    {}
 
-func (m *Signature) GetSignature() []byte {
-	if m != nil {
-		return m.Signature
-	}
-	return nil
-}
-
 // Public keys are stored in the clear.
 type PublicKey struct {
-	Key              []byte `protobuf:"bytes,1,req,name=key" json:"key,omitempty"`
-	XXX_unrecognized []byte `json:"-"`
+	Key []byte `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 }
 
 func (m *PublicKey) Reset()         { *m = PublicKey{} }
 func (m *PublicKey) String() string { return proto.CompactTextString(m) }
 func (*PublicKey) ProtoMessage()    {}
 
-func (m *PublicKey) GetKey() []byte {
-	if m != nil {
-		return m.Key
-	}
-	return nil
-}
-
 // Private keys are stored encrypted with a key derived via scrypt from a
 // passphrase.
 type PrivateKey struct {
-	N                *uint64        `protobuf:"varint,1,req" json:"N,omitempty"`
-	R                *uint64        `protobuf:"varint,2,req,name=r" json:"r,omitempty"`
-	P                *uint64        `protobuf:"varint,3,req,name=p" json:"p,omitempty"`
-	Salt             []byte         `protobuf:"bytes,4,req,name=salt" json:"salt,omitempty"`
-	Key              *EncryptedData `protobuf:"bytes,5,req,name=key" json:"key,omitempty"`
-	XXX_unrecognized []byte         `json:"-"`
+	N    uint64         `protobuf:"varint,1,opt" json:"N,omitempty"`
+	R    uint64         `protobuf:"varint,2,opt,name=r" json:"r,omitempty"`
+	P    uint64         `protobuf:"varint,3,opt,name=p" json:"p,omitempty"`
+	Salt []byte         `protobuf:"bytes,4,opt,name=salt,proto3" json:"salt,omitempty"`
+	Key  *EncryptedData `protobuf:"bytes,5,opt,name=key" json:"key,omitempty"`
 }
 
 func (m *PrivateKey) Reset()         { *m = PrivateKey{} }
 func (m *PrivateKey) String() string { return proto.CompactTextString(m) }
 func (*PrivateKey) ProtoMessage()    {}
-
-func (m *PrivateKey) GetN() uint64 {
-	if m != nil && m.N != nil {
-		return *m.N
-	}
-	return 0
-}
-
-func (m *PrivateKey) GetR() uint64 {
-	if m != nil && m.R != nil {
-		return *m.R
-	}
-	return 0
-}
-
-func (m *PrivateKey) GetP() uint64 {
-	if m != nil && m.P != nil {
-		return *m.P
-	}
-	return 0
-}
-
-func (m *PrivateKey) GetSalt() []byte {
-	if m != nil {
-		return m.Salt
-	}
-	return nil
-}
 
 func (m *PrivateKey) GetKey() *EncryptedData {
 	if m != nil {
@@ -168,70 +112,32 @@ func (m *PrivateKey) GetKey() *EncryptedData {
 
 // Data encrypted with ChaCha290Poly1305.
 type EncryptedData struct {
-	Nonce            []byte `protobuf:"bytes,1,req,name=nonce" json:"nonce,omitempty"`
-	Ciphertext       []byte `protobuf:"bytes,2,req,name=ciphertext" json:"ciphertext,omitempty"`
-	XXX_unrecognized []byte `json:"-"`
+	Nonce      []byte `protobuf:"bytes,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	Ciphertext []byte `protobuf:"bytes,2,opt,name=ciphertext,proto3" json:"ciphertext,omitempty"`
 }
 
 func (m *EncryptedData) Reset()         { *m = EncryptedData{} }
 func (m *EncryptedData) String() string { return proto.CompactTextString(m) }
 func (*EncryptedData) ProtoMessage()    {}
 
-func (m *EncryptedData) GetNonce() []byte {
-	if m != nil {
-		return m.Nonce
-	}
-	return nil
-}
-
-func (m *EncryptedData) GetCiphertext() []byte {
-	if m != nil {
-		return m.Ciphertext
-	}
-	return nil
-}
-
 // The first half of a handshake.
 type HandshakeA struct {
-	Nonce            []byte `protobuf:"bytes,1,req,name=nonce" json:"nonce,omitempty"`
-	XXX_unrecognized []byte `json:"-"`
+	Nonce []byte `protobuf:"bytes,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
 }
 
 func (m *HandshakeA) Reset()         { *m = HandshakeA{} }
 func (m *HandshakeA) String() string { return proto.CompactTextString(m) }
 func (*HandshakeA) ProtoMessage()    {}
 
-func (m *HandshakeA) GetNonce() []byte {
-	if m != nil {
-		return m.Nonce
-	}
-	return nil
-}
-
 // The second half of a handshake.
 type HandshakeB struct {
-	Presecret        []byte `protobuf:"bytes,1,req,name=presecret" json:"presecret,omitempty"`
-	Signature        []byte `protobuf:"bytes,2,req,name=signature" json:"signature,omitempty"`
-	XXX_unrecognized []byte `json:"-"`
+	Presecret []byte `protobuf:"bytes,1,opt,name=presecret,proto3" json:"presecret,omitempty"`
+	Signature []byte `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
 }
 
 func (m *HandshakeB) Reset()         { *m = HandshakeB{} }
 func (m *HandshakeB) String() string { return proto.CompactTextString(m) }
 func (*HandshakeB) ProtoMessage()    {}
-
-func (m *HandshakeB) GetPresecret() []byte {
-	if m != nil {
-		return m.Presecret
-	}
-	return nil
-}
-
-func (m *HandshakeB) GetSignature() []byte {
-	if m != nil {
-		return m.Signature
-	}
-	return nil
-}
 
 func init() {
 }

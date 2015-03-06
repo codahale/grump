@@ -5,7 +5,7 @@ import (
 	"hash"
 	"io"
 
-	"code.google.com/p/goprotobuf/proto"
+	"github.com/golang/protobuf/proto"
 )
 
 // framedReader reads protobuf messages, framed with a 32-bit little-endian
